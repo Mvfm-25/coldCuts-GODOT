@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://c4fhhnwthl5vq"]
+
+[ext_resource type="Script" uid="uid://bceqj35ufxbhj" path="res://gdscript/cellularAutomata.gd" id="1_vggnp"]
+[ext_resource type="PackedScene" uid="uid://dxm2paae72umr" path="res://scenes/node.tscn" id="2_yoet6"]
+
+[node name="Life" type="Node2D" unique_id=1672857498]
+script = ExtResource("1_vggnp")
+node_scene = ExtResource("2_yoet6")
