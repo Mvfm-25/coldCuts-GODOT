@@ -127,7 +127,7 @@ class Dungeon:
 					ameba.update_state("0")
 					print("Célula (", ameba.x, ", ", ameba.y, ") morreu por superpopulação.")
 					changes +=1
-				if(ameba.mutate_ameba(ameba)):
+				if(mutate_ameba(ameba)):
 					print("Célula (", ameba.x, ", ", ameba.y, ") sofreu mutação.")
 					changes +=1
 		print("Geração finalizada. ", changes, " mudanças aplicadas.")
@@ -145,8 +145,8 @@ class Dungeon:
 func _ready() -> void:
 	var masmorra = Dungeon.new()
 	
-	masmorra.set_height(20)
-	masmorra.set_width(20)
+	masmorra.set_height(5)
+	masmorra.set_width(5)
 	
 	masmorra.generate_grid(5)
 	print("Nome da masmorra : " + masmorra.name)
