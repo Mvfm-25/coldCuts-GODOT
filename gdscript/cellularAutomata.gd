@@ -1,3 +1,4 @@
+
 extends Node2D
 
 @export var node_scene : PackedScene
@@ -5,7 +6,7 @@ var dimensions : int = 50
 var node_width : int = 15
 var node_matrix = []
 
-class cell:
+class Ameba:
 	var rng = RandomNumberGenerator.new()
 	var state : String
 	var neighbors: int
@@ -24,7 +25,7 @@ class cell:
 			name = "Floor"
 
 	# Calcula a quantidade de vizinhos vivos, nas oito direções imediatas.
-	func _calculate_neighbors(dungeon : Array) -> int:
+	func calculate_neighbors(dungeon : Array) -> int:
 		# Reseta contador a cada chamada
 		neighbors = 0
 		
@@ -46,7 +47,7 @@ class cell:
 		return neighbors
 
 	# Atualização do estado da célula. Vai ficar mais complicado daqui a pouco, mas só preciso pensar em paredes e caminhos por enquanto.
-	func _update_state(newState : String) -> void :
+	func update_state(newState : String) -> void :
 		print("Atualizando estado de ", name, " para ", newState)
 		print("Posição: (", x, ", ", y, ")")
 		state = newState
@@ -66,13 +67,13 @@ class Dungeon:
 	var grid : Array
 	var name : String
 
-	func _set_width(new_width : int) -> void:
+	func set_width(new_width : int) -> void:
 		width = new_width
 
-	func _set_height(new_height : int) -> void:
+	func set_height(new_height : int) -> void:
 		height = new_height
 
-	func _generate_name() -> void:
+	func generate_name() -> void:
 		var p = ["Masmorra", "Caverna", "Abismo", "Calabouço", "Covil", "Tumba"]
 		var m = ["Sombria", "Sombrio", "Perdida", "Perdido", "Esquecida", "Esquecido", "Maldita", "Maldito"]
 		var f = ["Dos Mortos", "Dos Condenados", "Das Almas", "Do Senhor", "Da Desgraça", "Da Perdição"]
@@ -80,65 +81,79 @@ class Dungeon:
 		var nome = p.pick_random() + " " + m.pick_random() + " " + f.pick_random()
 		name = nome
 
-	func _generate_grid(generations : int) -> Array :
+	func generate_grid(generations : int) -> Array :
 		grid = []
+		print("Gerando novo nome...")
+		generate_name()
+		print("Nome gerado : " + name)
 
 		# Primeira passagem, estado inicial aleatório. Puro barulho.
 		for i in range(width):
 			var row = []
 			for j in range(height):
-				var node = cell.new()
-				node.x = i
-				node.y = j
-				row.append(node)
+				var ameba = Ameba.new()
+				ameba.x = i
+				ameba.y = j
+				print("Célula criada! x : ", ameba.x, ", y : ", ameba.y)
+				row.append(ameba)
 			grid.append(row)
 
 		# Passagens de evolução de estado, passando geração por geração a implementação de regras & mutação.
 		for g in range(generations) :
-			_game_rules()
+			game_rules()
+		print("Masmorra gerada!")
 		return grid
 		
 
 	# Regras de jogo. Se um nó tiver mais que 4 vizinhos vivos, ele morre. 
 	# Nele também uso a mutação. 25% de chance de inversão de estado.
-	func _game_rules() -> void :
+	func game_rules() -> void :
 		# Primeira passagem, calculo os vizinhos de cada nó.
 		var changes : int = 0
+		
+		#Debug
+		print("game_rules() foi chamado!")
 
 		for i in range(width):
 			for j in range(height):
 				var node = grid[i][j]
-				node._calculate_neighbors(grid)
+				node.calculate_neighbors(grid)
 
 		# Segunda passagem, aplico as regras de jogo e mutação.
 		for i in range(width):
 			for j in range(height):
-				var node = grid[i][j]
-				if node.neighbors > 4:
-					node._update_state("0")
-					print("Célula (", node.x, ", ", node.y, ") morreu por superpopulação.")
+				var ameba = grid[i][j]
+				if ameba.neighbors > 4:
+					ameba.update_state("0")
+					print("Célula (", ameba.x, ", ", ameba.y, ") morreu por superpopulação.")
 					changes +=1
-				if(node._mutate_node(node)):
-					print("Célula (", node.x, ", ", node.y, ") sofreu mutação.")
+				if(ameba.mutate_ameba(ameba)):
+					print("Célula (", ameba.x, ", ", ameba.y, ") sofreu mutação.")
 					changes +=1
 		print("Geração finalizada. ", changes, " mudanças aplicadas.")
 
 
-	func _mutate_node(node : cell) -> bool:
+	func mutate_ameba(ameba : Ameba) -> bool:
 		var roll_dice : int = rng.randi_range(0, 100)
 		if roll_dice < 25 :
-			node._update_state("1") if node.state == "0" else node._update_state("0")
+			ameba.update_state("1") if ameba.state == "0" else ameba.update_state("0")
 			return true
 		else :
 			return false
 
 
 func _ready() -> void:
-
+	var masmorra = Dungeon.new()
+	
+	masmorra.set_height(20)
+	masmorra.set_width(20)
+	
+	masmorra.generate_grid(5)
+	print("Nome da masmorra : " + masmorra.name)
 	pass
 	
 
 
 # Função chamda todo frame. Delta é o tempo intermediário entre cada frame
-func _process(delta: float) -> void:
+func _process_(delta: float) -> void:
 	pass
