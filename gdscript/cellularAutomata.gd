@@ -171,6 +171,29 @@ class Dungeon:
 			for j in range(height):
 				row_str += grid[i][j].state + " "
 			print(row_str)
+			
+## Separação de classes. ##			
+
+func _draw_dungeon(dungeon : Dungeon) -> void :
+	# Limpa o que foi desenhado antes
+	for tile in node_matrix:
+		tile.queue_free()
+	node_matrix.clear()
+	
+	for row in dungeon.grid:
+		for ameba in row:
+			var tile : Sprite2D = node_scene.instantiate()
+
+			# Posicionamento do .svg de acordo com sua escala.
+			tile.position = Vector2(ameba.x * dimensions, ameba.y * dimensions)
+			
+			# Pintando de cores diferentesa as paredes dos caminhos.
+			if ameba.state == "1":
+				tile.modulate = Color(0.25, 0.22, 0.20)
+			else :
+				tile.modulate = Color(0.65, 0.58, 0.44)
+			add_child(tile)
+			node_matrix.append(tile)
 
 
 func _ready() -> void:
@@ -181,6 +204,9 @@ func _ready() -> void:
 	
 	masmorra.generate_grid(5)
 	print("Nome da masmorra : " + masmorra.name)
+	
+	_draw_dungeon(masmorra)
+	
 	pass
 	
 
