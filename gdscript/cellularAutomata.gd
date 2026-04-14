@@ -172,6 +172,63 @@ class Dungeon:
 				row_str += grid[i][j].state + " "
 			print(row_str)
 			
+			
+# Classe para salvar e carregar masmorras.
+class DungeonIO :
+	
+	# Salva
+	static func save(dungeon : Dungeon, path : String) -> void:
+		var data = {
+			"name": dungeon.name,
+			"width" : dungeon.width,
+			"height" : dungeon.height,
+			"grid" : []
+		}
+		
+		for row in dungeon.grid:
+			var row_data := []
+			for ameba in row : 
+				row_data.append(ameba.state)
+			data["grid"].append(row_data)
+			
+		var file := FileAccess.open(path, FileAccess.WRITE)
+		file.store_string(JSON.stringify(data, "\t"))
+		file.close()
+		
+	# Carrega
+	static func load(path : String) -> Dungeon :
+		var file := FileAccess.open(path, FileAccess.READ)
+		var parsed : Variant = JSON.parse_string(file.get_as_text())
+		file.close()
+		
+		# Pega atributos
+		var dungeon := Dungeon.new()
+		dungeon.name = parsed["name"]
+		dungeon.width = parsed["width"]
+		dungeon.height = parsed["height"]
+		dungeon.grid = []
+		dungeon.walls = 0
+		dungeon.paths = 0
+		
+		# Ameba por ameba
+		for y in dungeon.height : 
+			var row := []
+			for x in dungeon.width :
+				var ameba := Ameba.new()
+				ameba.x = x
+				ameba.y = y
+				ameba.update_state(parsed["grid"][y][x])
+				row.append(ameba)
+			dungeon.grid.append(row)
+			
+		# Re-contagem paredes / caminhos
+		for row in dungeon.grid :
+			for ameba in row :
+				if ameba.state == "1" : dungeon.walls += 1
+				else : dungeon.paths += 1
+				
+		return dungeon 
+			
 ## Separação de classes. ##			
 
 func _draw_dungeon(dungeon : Dungeon) -> void :
@@ -204,6 +261,7 @@ func _ready() -> void:
 	
 	masmorra.generate_grid(5)
 	print("Nome da masmorra : " + masmorra.name)
+	DungeonIO.save(masmorra, "res://dungeons/masmorra_teste.dungeon")
 	
 	_draw_dungeon(masmorra)
 	
