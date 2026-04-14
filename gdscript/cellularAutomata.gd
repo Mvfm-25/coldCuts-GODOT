@@ -6,6 +6,12 @@ var dimensions : int = 50
 var node_width : int = 15
 var node_matrix = []
 
+# Pra fazer pop-upzinho
+var current_dungeon : Dungeon                                                                                                     
+var popup_layer : CanvasLayer
+var popup_panel : Panel                                                                                                           
+var popup_label : Label
+
 class Ameba:
 	var rng = RandomNumberGenerator.new()
 	var state : String
@@ -217,7 +223,7 @@ class DungeonIO :
 				var ameba := Ameba.new()
 				ameba.x = x
 				ameba.y = y
-				ameba.update_state(parsed["grid"][y][x])
+				ameba.update_state(parsed["grid"][x][y])
 				row.append(ameba)
 			dungeon.grid.append(row)
 			
@@ -252,22 +258,52 @@ func _draw_dungeon(dungeon : Dungeon) -> void :
 			add_child(tile)
 			node_matrix.append(tile)
 
+# Desenha o pop-up na tela para interação do usuário
+func _create_popup() -> void : 
+	popup_layer = CanvasLayer.new()
+	add_child(popup_layer)
+																																	
+	popup_panel = Panel.new()
+	popup_panel.custom_minimum_size = Vector2(250, 120)                                                                            
+	popup_panel.hide()
+	popup_layer.add_child(popup_panel)
+
+	popup_label = Label.new()                                                                                                     
+	popup_label.position = Vector2(8, 8)
+	popup_panel.add_child(popup_label)     
+
+func _input(event: InputEvent) -> void:
+	if not event is InputEventMouseButton or not event.pressed:
+		return
+
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		var grid_x := int(event.position.x / dimensions)
+		var grid_y := int(event.position.y / dimensions)
+
+		if current_dungeon and \
+		   grid_x >= 0 and grid_x < current_dungeon.width and \
+		   grid_y >= 0 and grid_y < current_dungeon.height:
+			var ameba : Ameba = current_dungeon.grid[grid_x][grid_y]
+			popup_label.text = "X: %d\nY: %d\nState: %s\nIt is surrounded by %d walls" % [ameba.x, ameba.y, ameba.name, ameba.calculate_neighbors(current_dungeon.grid)]
+			popup_panel.position = event.position + Vector2(10, 10)
+			popup_panel.show()
+		else:
+			popup_panel.hide()
+
+	elif event.button_index == MOUSE_BUTTON_LEFT:
+		popup_panel.hide()
+
 
 func _ready() -> void:
 	var masmorra = Dungeon.new()
-	
 	masmorra.set_height(20)
-	masmorra.set_width(20)
-	
+	masmorra.set_width(20)                                                                                                        
 	masmorra.generate_grid(5)
-	print("Nome da masmorra : " + masmorra.name)
-	DungeonIO.save(masmorra, "res://dungeons/masmorra_teste.dungeon")
-	
-	_draw_dungeon(masmorra)
-	
-	pass
-	
-
+	DungeonIO.save(masmorra, "res://dungeons/masmorra_teste.dungeon")                                                             
+																																	
+	current_dungeon = masmorra  # <-- store it
+	_create_popup()             # <-- build the popup                                                                             
+	_draw_dungeon(masmorra)  
 
 # Função chamda todo frame. Delta é o tempo intermediário entre cada frame
 func _process_(delta: float) -> void:
