@@ -43,13 +43,14 @@ class Ameba:
 				if 0 <= nx and nx < dungeon.size() and 0 <= ny and ny < dungeon[0].size():
 					if dungeon[nx][ny].state == "1":
 						neighbors += 1
-		
+		#print("Ameba atual : (", x,", ", y, ")")
+		#print("Viizinhos vivos encontrados : ", neighbors)
 		return neighbors
 
 	# Atualização do estado da célula. Vai ficar mais complicado daqui a pouco, mas só preciso pensar em paredes e caminhos por enquanto.
 	func update_state(newState : String) -> void :
-		print("Atualizando estado de ", name, " para ", newState)
-		print("Posição: (", x, ", ", y, ")")
+		#print("Atualizando estado de ", name, " para ", newState)
+		#print("Posição: (", x, ", ", y, ")")
 		state = newState
 
 		if state == "1":
@@ -65,6 +66,8 @@ class Dungeon:
 	var width : int
 	var height : int
 	var grid : Array
+	var paths : int
+	var walls : int
 	var name : String
 
 	func set_width(new_width : int) -> void:
@@ -83,9 +86,11 @@ class Dungeon:
 
 	func generate_grid(generations : int) -> Array :
 		grid = []
+		paths = 0
+		walls = 0
 		print("Gerando novo nome...")
 		generate_name()
-		print("Nome gerado : " + name)
+		#print("Nome gerado : " + name)
 
 		# Primeira passagem, estado inicial aleatório. Puro barulho.
 		for i in range(width):
@@ -94,13 +99,23 @@ class Dungeon:
 				var ameba = Ameba.new()
 				ameba.x = i
 				ameba.y = j
-				print("Célula criada! x : ", ameba.x, ", y : ", ameba.y)
+
+				# Contagem que pode ajudar depois.
+				if(ameba.state == "1"):
+					walls += 1
+				else :
+					paths += 1
+
 				row.append(ameba)
 			grid.append(row)
 
 		# Passagens de evolução de estado, passando geração por geração a implementação de regras & mutação.
 		for g in range(generations) :
+			print("Gen : ", g)
 			game_rules()
+			print_dungeon()
+			print("Caminhos : ", paths, " | Paredes : ", walls)
+			print()
 		print("Masmorra gerada!")
 		return grid
 		
@@ -110,9 +125,6 @@ class Dungeon:
 	func game_rules() -> void :
 		# Primeira passagem, calculo os vizinhos de cada nó.
 		var changes : int = 0
-		
-		#Debug
-		print("game_rules() foi chamado!")
 
 		for i in range(width):
 			for j in range(height):
@@ -123,30 +135,49 @@ class Dungeon:
 		for i in range(width):
 			for j in range(height):
 				var ameba = grid[i][j]
-				if ameba.neighbors > 4:
+				if ameba.neighbors > 4 and ameba.state == "1":
 					ameba.update_state("0")
-					print("Célula (", ameba.x, ", ", ameba.y, ") morreu por superpopulação.")
+					#print("Célula (", ameba.x, ", ", ameba.y, ") morreu por superpopulação.")
 					changes +=1
+					paths += 1
+					walls -= 1
 				if(mutate_ameba(ameba)):
-					print("Célula (", ameba.x, ", ", ameba.y, ") sofreu mutação.")
+					#print("Célula (", ameba.x, ", ", ameba.y, ") sofreu mutação.")
 					changes +=1
+
+					# Atualização da contagem de paredes e caminhos.
+					if ameba.state == "1":
+						paths -= 1
+						walls += 1
+					else :
+						paths += 1
+						walls -= 1
 		print("Geração finalizada. ", changes, " mudanças aplicadas.")
 
 
 	func mutate_ameba(ameba : Ameba) -> bool:
-		var roll_dice : int = rng.randi_range(0, 100)
+		# randi_range é inclusive.
+		var roll_dice : int = rng.randi_range(0, 99)
 		if roll_dice < 25 :
 			ameba.update_state("1") if ameba.state == "0" else ameba.update_state("0")
 			return true
 		else :
 			return false
+			
+	# Função para impressão da Masmorra. Outra passagem.		
+	func print_dungeon() -> void :
+		for i in range(width):
+			var row_str : String = ""
+			for j in range(height):
+				row_str += grid[i][j].state + " "
+			print(row_str)
 
 
 func _ready() -> void:
 	var masmorra = Dungeon.new()
 	
-	masmorra.set_height(5)
-	masmorra.set_width(5)
+	masmorra.set_height(20)
+	masmorra.set_width(20)
 	
 	masmorra.generate_grid(5)
 	print("Nome da masmorra : " + masmorra.name)
