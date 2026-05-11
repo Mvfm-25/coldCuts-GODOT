@@ -12,6 +12,7 @@ var popup_layer : CanvasLayer
 var popup_panel : Panel                                                                                                           
 var popup_label : Label
 
+
 class Ameba:
 	var rng = RandomNumberGenerator.new()
 	var state : String
@@ -182,8 +183,19 @@ class Dungeon:
 # Classe para salvar e carregar masmorras.
 class DungeonIO :
 	
+	# Verifica número mais recente
+	static func check() -> String :
+		var file := FileAccess.open("./dungeons/tracker.json", FileAccess.READ)
+		var parsed : Variant = JSON.parse_string(file.get_as_text())
+		file.close()
+		
+		var last = parsed["last"]
+		print(last)
+		
+		return last
+	
 	# Salva
-	static func save(dungeon : Dungeon, path : String) -> void:
+	static func save(dungeon : Dungeon) -> void:
 		var data = {
 			"name": dungeon.name,
 			"width" : dungeon.width,
@@ -197,9 +209,11 @@ class DungeonIO :
 				row_data.append(ameba.state)
 			data["grid"].append(row_data)
 			
-		var file := FileAccess.open(path, FileAccess.WRITE)
+		var file := FileAccess.open(check(), FileAccess.WRITE)
 		file.store_string(JSON.stringify(data, "\t"))
 		file.close()
+		
+		print( "last : " + check() )
 		
 	# Carrega
 	static func load(path : String) -> Dungeon :
@@ -293,14 +307,13 @@ func _input(event: InputEvent) -> void:
 	elif event.button_index == MOUSE_BUTTON_LEFT:
 		popup_panel.hide()
 
-
 func _ready() -> void:
 	var masmorra = Dungeon.new()
 	masmorra.set_height(20)
 	masmorra.set_width(20)                                                                                                        
 	masmorra.generate_grid(5)
-	DungeonIO.save(masmorra, "res://dungeons/masmorra_teste.dungeon")                                                             
-																																	
+	DungeonIO.save(masmorra)
+	
 	current_dungeon = masmorra  # <-- store it
 	_create_popup()             # <-- build the popup                                                                             
 	_draw_dungeon(masmorra)  

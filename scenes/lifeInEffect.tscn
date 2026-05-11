@@ -1,4 +1,4 @@
-[gd_scene format=3 uid="uid://dwrud17fcrxhi"]
+[gd_scene format=3 uid="uid://dly3q5hg5atjc"]
 
 [ext_resource type="Script" uid="uid://bceqj35ufxbhj" path="res://gdscript/cellularAutomata.gd" id="1_vggnp"]
 [ext_resource type="PackedScene" uid="uid://dxm2paae72umr" path="res://scenes/node.tscn" id="2_yoet6"]
