@@ -1,0 +1,10 @@
+[gd_scene format=3 uid="uid://detrweenr161"]
+
+[ext_resource type="Script" uid="uid://wuo2706wnxc4" path="res://gdscript/jogador.gd" id="1_uahlj"]
+[ext_resource type="Texture2D" uid="uid://jbjdifvx8np2" path="res://assets/player/Funny_Little_Fella.png" id="1_vwxko"]
+
+[node name="Jogador" type="Node2D" unique_id=1333820756]
+script = ExtResource("1_uahlj")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=1461865658]
+texture = ExtResource("1_vwxko")

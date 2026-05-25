@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://cjogo00scene1"]
+
+[ext_resource type="Script" uid="uid://7trfjk8tgetd" path="res://gdscript/coldCuts.gd" id="1_np85a"]
+[ext_resource type="PackedScene" uid="uid://dxm2paae72umr" path="res://scenes/node.tscn" id="2_rs0g4"]
+
+[node name="Jogo" type="Node2D" unique_id=1032361940]
+script = ExtResource("1_np85a")
+node_scene = ExtResource("2_rs0g4")

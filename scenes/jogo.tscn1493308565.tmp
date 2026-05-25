@@ -1,0 +1,8 @@
+[gd_scene format=3 uid="uid://cssd1pag54541"]
+
+[ext_resource type="Script" uid="uid://7trfjk8tgetd" path="res://gdscript/jogo.gd" id="1_jogo"]
+[ext_resource type="PackedScene" uid="uid://dxm2paae72umr" path="res://scenes/node.tscn" id="2_jogo"]
+
+[node name="Jogo" type="Node2D" unique_id=1032361940]
+script = ExtResource("1_jogo")
+node_scene = ExtResource("2_jogo")
