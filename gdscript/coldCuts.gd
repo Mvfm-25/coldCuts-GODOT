@@ -1,6 +1,7 @@
 extends Node2D
 
-const CA = preload("res://gdscript/cellularAutomata.gd")
+const CA             = preload("res://gdscript/cellularAutomata.gd")
+const TerminalScene  = preload("res://scenes/terminal.tscn")
 
 @export var node_scene : PackedScene
 
@@ -20,10 +21,68 @@ var overlay_layer : CanvasLayer
 var player_name : String = ""
 var player_class : String = ""
 
+var terminal = null
+
+var enemies : Array = []
+var items : Array = []
+var enemies_data : Array = []
+var items_data : Array = []
+var entity_labels : Array = []
+
+
+class Enemy:
+	var nome : String
+	var sprite_char : String
+	var hp : int
+	var ataque : int
+	var armadura : int
+	var acuracia : int
+	var x : int
+	var y : int
+	var label : Label
+
+	func _init(_nome: String, _sprite: String, _hp: int, _ataque: int, _armadura: int, _x: int, _y: int) -> void:
+		nome = _nome
+		sprite_char = _sprite
+		hp = _hp
+		ataque = _ataque
+		armadura = _armadura
+		acuracia = randi_range(25, 90)
+		x = _x
+		y = _y
+
+
+class Item:
+	var nome : String
+	var sprite_char : String
+	var valor : int
+	var usavel : bool
+	var glossario : String
+	var x : int
+	var y : int
+	var label : Label
+
+	func _init(_nome: String, _sprite: String, _valor: int, _usavel: bool, _glossario: String, _x: int, _y: int) -> void:
+		nome = _nome
+		sprite_char = _sprite
+		valor = _valor
+		usavel = _usavel
+		glossario = _glossario
+		x = _x
+		y = _y
+
 
 func _ready() -> void:
+	terminal = TerminalScene.instantiate()
+	add_child(terminal)
 	_create_hud()
 	_create_main_menu()
+
+
+func _log(text: String) -> void:
+	print(text)
+	if terminal:
+		terminal.add_line(text)
 
 
 func _create_hud() -> void:
@@ -248,9 +307,10 @@ func _start_game() -> void:
 		return
 	_draw_dungeon()
 	_spawn_player()
+	_initialize_dungeon_for_game()
 	dungeon_label.text = current_dungeon.name
 	dungeon_label.show()
-	print("Aventura iniciada! Personagem: %s (%s)" % [player_name, player_class])
+	_log("Aventura iniciada! Personagem: %s (%s)" % [player_name, player_class])
 
 
 func _load_random_dungeon() -> void:
@@ -274,7 +334,7 @@ func _load_random_dungeon() -> void:
 
 	files.shuffle()
 	current_dungeon = CA.DungeonIO.load(files[0])
-	print("Masmorra carregada: ", current_dungeon.name if current_dungeon else "ERRO")
+	_log("Masmorra carregada: " + (current_dungeon.name if current_dungeon else "ERRO"))
 
 
 func _draw_dungeon() -> void:
@@ -335,13 +395,177 @@ func _spawn_player() -> void:
 		player_sprite.scale = Vector2(float(tile_size) / 8.0, float(tile_size) / 8.0)
 
 	player_sprite.position = _tile_pixel_pos(player_x, player_y)
-	player_sprite.z_index = 1
+	player_sprite.z_index = 2
 	add_child(player_sprite)
 
 
 func _tile_pixel_pos(gx : int, gy : int) -> Vector2:
 	return Vector2(gx * tile_size + tile_size * 0.5, gy * tile_size + tile_size * 0.5)
 
+
+# --- Carregamento de entidades ---
+
+func _load_entities_data() -> void:
+	var file = FileAccess.open("res://entidades/adversarios.json", FileAccess.READ)
+	if file:
+		var parsed = JSON.parse_string(file.get_as_text())
+		if parsed is Array:
+			enemies_data = parsed
+		file.close()
+	else:
+		push_warning("Não foi possível abrir res://entidades/adversarios.json")
+
+	file = FileAccess.open("res://entidades/items.json", FileAccess.READ)
+	if file:
+		var parsed = JSON.parse_string(file.get_as_text())
+		if parsed is Array:
+			items_data = parsed
+		file.close()
+	else:
+		push_warning("Não foi possível abrir res://entidades/items.json")
+
+
+func _clear_entity_labels() -> void:
+	for lbl in entity_labels:
+		if is_instance_valid(lbl):
+			lbl.queue_free()
+	entity_labels.clear()
+	enemies.clear()
+	items.clear()
+
+
+func _spawn_entity_label(char: String, x: int, y: int, color: Color) -> Label:
+	var lbl = Label.new()
+	lbl.text = char
+	lbl.position = Vector2(x * tile_size, y * tile_size)
+	lbl.custom_minimum_size = Vector2(tile_size, tile_size)
+	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.add_theme_font_size_override("font_size", max(8, tile_size - 2))
+	lbl.modulate = color
+	lbl.z_index = 1
+	add_child(lbl)
+	entity_labels.append(lbl)
+	return lbl
+
+
+# --- População de inimigos ---
+
+func _populate_enemies(count: int) -> void:
+	if enemies_data.is_empty():
+		return
+
+	var placed := 0
+	var attempts := 0
+	var max_attempts := count * 10
+
+	while placed < count and attempts < max_attempts:
+		attempts += 1
+		var x := randi_range(0, current_dungeon.width - 1)
+		var y := randi_range(0, current_dungeon.height - 1)
+
+		if current_dungeon.grid[x][y].state != "0":
+			continue
+		if x == player_x and y == player_y:
+			continue
+
+		var occupied := false
+		for e in enemies:
+			if e.x == x and e.y == y:
+				occupied = true
+				break
+		if occupied:
+			continue
+
+		var data : Dictionary = enemies_data[randi_range(0, enemies_data.size() - 1)]
+		var enemy := Enemy.new(data["nome"], data["sprite"], int(data["hp"]),
+							   int(data["ataque"]), int(data["armadura"]), x, y)
+		enemy.label = _spawn_entity_label(enemy.sprite_char, x, y, Color(1.0, 0.3, 0.3))
+		enemies.append(enemy)
+		placed += 1
+
+	_log("Inimigos inseridos: %d" % placed)
+
+
+# --- População de itens ---
+
+func _guarantee_key() -> void:
+	var attempts := 0
+	while attempts < 100:
+		attempts += 1
+		var x := randi_range(0, current_dungeon.width - 1)
+		var y := randi_range(0, current_dungeon.height - 1)
+
+		if current_dungeon.grid[x][y].state != "0":
+			continue
+		if x == player_x and y == player_y:
+			continue
+
+		var occupied := false
+		for it in items:
+			if it.x == x and it.y == y:
+				occupied = true
+				break
+		if occupied:
+			continue
+
+		var key := Item.new("Chave", "C", 25, true,
+							"Poucos conhecem deste item, outros iriam preferir não o conhecer...", x, y)
+		key.label = _spawn_entity_label("C", x, y, Color(1.0, 0.9, 0.1))
+		items.append(key)
+		return
+
+
+func _populate_items(count: int) -> void:
+	if items_data.is_empty():
+		return
+
+	_guarantee_key()
+
+	var placed := 0
+	var attempts := 0
+	var max_attempts := count * 10
+
+	while placed < count and attempts < max_attempts:
+		attempts += 1
+		var x := randi_range(0, current_dungeon.width - 1)
+		var y := randi_range(0, current_dungeon.height - 1)
+
+		if current_dungeon.grid[x][y].state != "0":
+			continue
+		if x == player_x and y == player_y:
+			continue
+
+		var occupied := false
+		for it in items:
+			if it.x == x and it.y == y:
+				occupied = true
+				break
+		for e in enemies:
+			if e.x == x and e.y == y:
+				occupied = true
+				break
+		if occupied:
+			continue
+
+		var data : Dictionary = items_data[randi_range(0, items_data.size() - 1)]
+		var new_item := Item.new(data["nome"], data["sprite"], int(data["valor"]),
+								 bool(data["usavel"]), data["glossario"], x, y)
+		new_item.label = _spawn_entity_label(new_item.sprite_char, x, y, Color(1.0, 0.85, 0.2))
+		items.append(new_item)
+		placed += 1
+
+	_log("Itens colocados: %d" % placed)
+
+
+func _initialize_dungeon_for_game() -> void:
+	_clear_entity_labels()
+	_load_entities_data()
+	_populate_enemies(20)
+	_populate_items(10)
+
+
+# --- Input e movimento ---
 
 func _input(event : InputEvent) -> void:
 	if current_dungeon == null:
@@ -383,6 +607,22 @@ func _try_move(new_x : int, new_y : int) -> void:
 		return
 	if current_dungeon.grid[new_x][new_y].state == "1":
 		return
+
+	# Bloqueia movimento para tiles com inimigos
+	for e in enemies:
+		if e.x == new_x and e.y == new_y:
+			return
+
+	# Coleta item se houver na posição destino
+	for i in range(items.size()):
+		if items[i].x == new_x and items[i].y == new_y:
+			var collected : Item = items[i]
+			if is_instance_valid(collected.label):
+				entity_labels.erase(collected.label)
+				collected.label.queue_free()
+			items.remove_at(i)
+			_log("Item coletado: %s (Valor: %d)" % [collected.nome, collected.valor])
+			break
 
 	player_x = new_x
 	player_y = new_y
