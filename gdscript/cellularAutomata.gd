@@ -56,6 +56,8 @@ class Dungeon:
 	var paths : int
 	var walls : int
 	var name : String
+	# Marca esta masmorra como arena de boss. Guardada no .dungeon como 1/0.
+	var is_boss : bool = false
 
 	func set_width(new_width : int) -> void:
 		width = new_width
@@ -162,6 +164,7 @@ class DungeonIO:
 			"name": dungeon.name,
 			"width": dungeon.width,
 			"height": dungeon.height,
+			"boss": 1 if dungeon.is_boss else 0,
 			"grid": []
 		}
 		for row in dungeon.grid:
@@ -191,6 +194,8 @@ class DungeonIO:
 		dungeon.name = parsed["name"]
 		dungeon.width = parsed["width"]
 		dungeon.height = parsed["height"]
+		# Compatível com .dungeon antigos (sem o campo): assume não-boss.
+		dungeon.is_boss = int(parsed.get("boss", 0)) == 1
 		dungeon.grid = []
 		dungeon.walls = 0
 		dungeon.paths = 0
@@ -512,6 +517,11 @@ func _show_manual_config_dialog() -> void:
 	var spin_w = _make_spin_row(vbox, "Largura:", 5, 80, 20)
 	var spin_h = _make_spin_row(vbox, "Altura:",  5, 80, 20)
 
+	var boss_check = CheckBox.new()
+	boss_check.text = "Masmorra de Boss"
+	boss_check.tooltip_text = "Marca o .dungeon resultante como arena de boss (boss=1)."
+	vbox.add_child(boss_check)
+
 	var fill = Control.new()
 	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	vbox.add_child(fill)
@@ -537,18 +547,20 @@ func _show_manual_config_dialog() -> void:
 	btn_ok.pressed.connect(func():
 		var w = int(spin_w.value)
 		var h = int(spin_h.value)
+		var is_boss = boss_check.button_pressed
 		dialog_layer.queue_free()
 		menu_layer.hide()
-		_start_manual_edit(w, h)
+		_start_manual_edit(w, h, is_boss)
 	)
 	hbox.add_child(btn_ok)
 
 
-func _start_manual_edit(width : int, height : int) -> void:
+func _start_manual_edit(width : int, height : int, is_boss : bool = false) -> void:
 	var dungeon = Dungeon.new()
 	dungeon.set_width(width)
 	dungeon.set_height(height)
 	dungeon.init_empty_grid()
+	dungeon.is_boss = is_boss
 	current_dungeon = dungeon
 	is_manual_editing = true
 
@@ -563,9 +575,10 @@ func _start_manual_edit(width : int, height : int) -> void:
 func _update_dungeon_status() -> void:
 	if current_dungeon == null:
 		return
-	status_label.text = "%dx%d  |  Paredes: %d  |  Caminhos: %d" % [
+	var boss_tag := "  |  BOSS" if current_dungeon.is_boss else ""
+	status_label.text = "%dx%d  |  Paredes: %d  |  Caminhos: %d%s" % [
 		current_dungeon.width, current_dungeon.height,
-		current_dungeon.walls, current_dungeon.paths
+		current_dungeon.walls, current_dungeon.paths, boss_tag
 	]
 
 

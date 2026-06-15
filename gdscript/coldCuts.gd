@@ -515,6 +515,7 @@ func _create_jogador() -> void:
 	add_child(jogador_node)
 	jogador_node.logged.connect(_log)
 	jogador_node.pediu_portal.connect(_on_pediu_portal)
+	jogador_node.pediu_boss.connect(_on_pediu_boss)
 	jogador_node.morreu.connect(_on_jogador_morreu)
 	jogador_node.cria_personagem(player_name, player_class)
 
@@ -778,6 +779,10 @@ func _input(event : InputEvent) -> void:
 			# Consultar o dicionário de palavras conhecidas.
 			_show_dictionary_dialog()
 			return
+		KEY_F:
+			# Falar em voz alta (pode invocar uma masmorra de boss).
+			_show_speak_dialog()
+			return
 
 	var dir := _dir_from_keycode(event.keycode)
 	if dir == Vector2i.ZERO:
@@ -998,6 +1003,52 @@ func _enter_new_dungeon() -> void:
 	dungeon_label.text = current_dungeon.name
 
 
+# --- Masmorra de boss (invocada pela fala secreta do Jogador) ---
+
+# Disparado pelo sinal pediu_boss do Jogador. O Jogador já validou a frase e a
+# posse da chave; cabe ao jogo escolher e carregar uma masmorra de boss.
+func _on_pediu_boss() -> void:
+	var boss_path := _pick_random_boss_dungeon()
+	if boss_path == "":
+		_log("...mas nenhum covil de boss responde ao chamado.")
+		return
+
+	current_dungeon = CA.DungeonIO.load(boss_path)
+	if current_dungeon == null:
+		return
+	_draw_dungeon()
+	_spawn_player()
+	_initialize_dungeon_for_game()
+	dungeon_label.text = current_dungeon.name
+	_log("Você desperta numa arena de boss: %s" % current_dungeon.name)
+
+
+# Procura em res://dungeons/ todas as masmorras marcadas como boss e devolve
+# o caminho de uma escolhida ao acaso (ou "" se não houver nenhuma).
+func _pick_random_boss_dungeon() -> String:
+	var dir = DirAccess.open("res://dungeons/")
+	if not dir:
+		push_error("Diretório res://dungeons/ não encontrado.")
+		return ""
+
+	var boss_files : Array[String] = []
+	dir.list_dir_begin()
+	var fname = dir.get_next()
+	while fname != "":
+		if fname.ends_with(".dungeon"):
+			var path := "res://dungeons/" + fname
+			var d = CA.DungeonIO.load(path)
+			if d != null and d.is_boss:
+				boss_files.append(path)
+		fname = dir.get_next()
+	dir.list_dir_end()
+
+	if boss_files.is_empty():
+		return ""
+	boss_files.shuffle()
+	return boss_files[0]
+
+
 # --- Diálogos modais ---
 
 func _close_dialog(layer : CanvasLayer) -> void:
@@ -1154,5 +1205,83 @@ func _show_dictionary_dialog() -> void:
 		_close_dialog(dialog_layer)
 		if not q.is_empty():
 			jogador_node.abre_dicionario(q)
+	)
+	edit.grab_focus()
+
+
+func _show_speak_dialog() -> void:
+	if not jogador_node:
+		return
+
+	dialog_open = true
+
+	var dialog_layer = CanvasLayer.new()
+	dialog_layer.layer = 9
+	add_child(dialog_layer)
+
+	var bg = ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.55)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dialog_layer.add_child(bg)
+
+	var panel = Panel.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left   = -170
+	panel.offset_top    =  -95
+	panel.offset_right  =  170
+	panel.offset_bottom =   95
+	dialog_layer.add_child(panel)
+
+	var margin = MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["margin_top", "margin_left", "margin_right", "margin_bottom"]:
+		margin.add_theme_constant_override(side, 18)
+	panel.add_child(margin)
+
+	var vbox = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 14)
+	margin.add_child(vbox)
+
+	var title = Label.new()
+	title.text = "Falar em voz alta"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 16)
+	vbox.add_child(title)
+
+	var edit = LineEdit.new()
+	edit.placeholder_text = "O que deseja dizer?"
+	edit.max_length = 48
+	vbox.add_child(edit)
+
+	var fill = Control.new()
+	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	vbox.add_child(fill)
+
+	var hbox = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 8)
+	vbox.add_child(hbox)
+
+	var spacer = Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(spacer)
+
+	var btn_close = Button.new()
+	btn_close.text = "Fechar"
+	btn_close.pressed.connect(func(): _close_dialog(dialog_layer))
+	hbox.add_child(btn_close)
+
+	var btn_ok = Button.new()
+	btn_ok.text = "Falar"
+	btn_ok.pressed.connect(func():
+		var q = edit.text
+		_close_dialog(dialog_layer)
+		jogador_node.falar(q)
+	)
+	hbox.add_child(btn_ok)
+
+	edit.text_submitted.connect(func(_t: String):
+		var q = edit.text
+		_close_dialog(dialog_layer)
+		jogador_node.falar(q)
 	)
 	edit.grab_focus()

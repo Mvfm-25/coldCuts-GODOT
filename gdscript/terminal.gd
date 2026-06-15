@@ -151,7 +151,7 @@ func _build_binds_panel() -> void:
 
 	var binds := Label.new()
 	binds.position = Vector2(8, 24)
-	binds.text = "Mover: setas / W S D / numpad    Diagonais: Q E Z C\nAtacar: A + direção    Inventário: I    Usar item: U\nDicionário: G    Portal: P"
+	binds.text = "Mover: setas / W S D / numpad    Diagonais: Q E Z C\nAtacar: A + direção    Inventário: I    Usar item: U\nDicionário: G    Portal: P    Falar: F"
 	binds.add_theme_color_override("font_color", Color(0.15, 0.9, 0.15))
 	binds.add_theme_font_size_override("font_size", 11)
 	panel.add_child(binds)
