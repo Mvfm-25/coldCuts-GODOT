@@ -1,0 +1,29 @@
+{
+	"enigma": "Uma voz sem dono murmura nas trevas: \"Três nomes selam o pacto... o que chama, o que ordena, o que tranca. Encontra-os, e um covil te abrirá as portas.\"",
+	"palavras": [
+		{
+			"palavra": "Aye",
+			"papel": "chama",
+			"glossario": "O chamamento. Nenhuma voz se ergue sem ele primeiro.",
+			"inicial": true,
+			"voz": "A voz sussurra: \"Já trazes contigo o chamado — 'Aye'. Com ele tudo começa.\""
+		},
+		{
+			"palavra": "Mak",
+			"papel": "ordena",
+			"glossario": "A ordem que os mortos obedecem. Segue sempre quem chama.",
+			"desbloqueio": { "tipo": "inimigos_derrotados", "quantidade": 5 },
+			"voz": "A voz regressa: \"Derramaste o bastante para que a morte te obedeça... 'Mak' ressoa em tua mente.\""
+		},
+		{
+			"palavra": "Sicur",
+			"papel": "tranca",
+			"glossario": "O selo. Fecha o pacto. Vem por último, ou nada se sela.",
+			"desbloqueio": { "tipo": "pergaminhos_lidos", "quantidade": 5 },
+			"voz": "A voz cochicha: \"O saber dos monges fecha-se sobre ti como um selo... 'Sicur'.\""
+		}
+	],
+	"pactos": [
+		{ "frase": "aye mak sicur", "efeito": "invoca_boss" }
+	]
+}

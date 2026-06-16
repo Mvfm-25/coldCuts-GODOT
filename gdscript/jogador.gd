@@ -1,10 +1,9 @@
 extends Node2D
 class_name Jogador
 
-# Frase secreta que invoca uma masmorra de boss (ver falar()).
-const FRASE_BOSS := "aye mak sicur"
-# Frase de debug que extermina todos os inimigos do mapa (ver falar()).
-const FRASE_EXTERMINATUS := "1701 exterminatus"
+# As palavras mágicas e os pactos vivem em entidades/palavras.json e são
+# validados pelo coldCuts.gd: o Jogador apenas reporta o que diz (ver falar())
+# e quais palavras já se lembra (ver lembra_palavra()).
 
 var _sprites: Dictionary = {
 	"Bárbaro":   "res://assets/player/barbaro.png",
@@ -35,6 +34,14 @@ var inventario: Array = []
 var ultimo_item_inserido: int = 0
 var dicionario: Array = []
 
+# Progresso que desbloqueia palavras mágicas (ver palavras.json). O Jogador só
+# conta os próprios feitos; é o coldCuts.gd que decide que palavra cada feito
+# concede e a entrega via lembra_palavra().
+var inimigos_derrotados: int = 0
+var pergaminhos_lidos: int = 0
+# Palavras mágicas já lembradas, em minúsculas (ver ja_lembra()/lembra_palavra()).
+var palavras_lembradas: Array = []
+
 # Roteamento de texto: qualquer print() do jogador passa por aqui.
 # coldCuts.gd conecta este sinal ao seu _log() para exibir no terminal in-game.
 signal logged(text: String)
@@ -42,8 +49,11 @@ signal logged(text: String)
 signal morreu(adversario_nome: String)
 signal nivel_subiu(novo_nivel: int)
 signal pediu_portal
-signal pediu_boss
-signal pediu_exterminatus
+# O jogador entoou uma frase; cabe ao coldCuts.gd validá-la contra os pactos.
+signal disse(frase: String)
+# Um contador de progresso mudou (tipo + novo valor); o jogo verifica se isso
+# desbloqueia alguma palavra mágica.
+signal progrediu(tipo: String, valor: int)
 
 # Nullable: coldCuts gerencia o Sprite2D diretamente; só é atribuído se o nó existir.
 var _sprite: Sprite2D = null
@@ -119,6 +129,8 @@ func ataca(alvo, bateu_parede: bool = false) -> bool:
 	if alvo.hp <= 0:
 		_log("*** Você derrotou %s! ***" % alvo.nome)
 		checa_nivel(50)
+		inimigos_derrotados += 1
+		progrediu.emit("inimigos_derrotados", inimigos_derrotados)
 		return true
 	return false
 
@@ -160,6 +172,8 @@ func usa_item(id: int, _dungeon = null) -> bool:
 					"P":
 						_log("Você lê o pergaminho e ganha sabedoria!")
 						xp += 20
+						pergaminhos_lidos += 1
+						progrediu.emit("pergaminhos_lidos", pergaminhos_lidos)
 						inventario.remove_at(i)
 						return true
 				inventario.remove_at(i)
@@ -206,35 +220,34 @@ func abre_dicionario(pesquisa: String) -> void:
 	_log("Palavra '%s' não está em seu vocabulário..." % pesquisa)
 
 
-# O jogador entoa uma frase em voz alta. Frases reconhecidas disparam sinais
-# para o jogo agir; o Jogador não conhece o mapa nem a lista de inimigos, só
-# dispara o sinal — resolver o efeito é trabalho do coldCuts.gd.
+# Concede uma palavra mágica ao Jogador (chamado pelo coldCuts.gd ao cruzar um
+# limiar de progresso). Também entra no dicionário, para a consulta (tecla G).
+func lembra_palavra(palavra: String, glossario: String) -> void:
+	var chave := palavra.strip_edges().to_lower()
+	if chave.is_empty() or chave in palavras_lembradas:
+		return
+	palavras_lembradas.append(chave)
+	dicionario.append([palavra, glossario])
+
+
+func ja_lembra(palavra: String) -> bool:
+	return palavra.strip_edges().to_lower() in palavras_lembradas
+
+
+# O jogador entoa uma frase em voz alta. O Jogador não conhece o mapa, os
+# inimigos nem os pactos: apenas reporta o que disse via o sinal 'disse', e o
+# coldCuts.gd valida-o contra palavras.json e resolve o efeito.
 func falar(frase: String) -> void:
 	var dito := frase.strip_edges()
 	if dito.is_empty():
 		return
 	_log("Você entoa: \"%s\"" % dito)
-
-	match dito.to_lower():
-		FRASE_BOSS:
-			# Invoca uma masmorra de boss, à custa de uma chave do inventário.
-			if not _consome_chave():
-				_log("As palavras ressoam com poder, mas falta-lhe uma chave para selar o pacto.")
-				return
-			_log("A chave se desfaz em pó enquanto as palavras rasgam o véu da realidade!")
-			_log("Um covil de boss o reclama...")
-			pediu_boss.emit()
-		FRASE_EXTERMINATUS:
-			# Comando de debug: extermina todos os inimigos do mapa.
-			_log("EXTERMINATUS! Uma luz purificadora varre a masmorra.")
-			pediu_exterminatus.emit()
-		_:
-			_log("As palavras se perdem no eco da masmorra...")
+	disse.emit(dito)
 
 
 # Procura uma chave (sprite "C") no inventário; se houver, gasta-a (como usa_item)
-# e devolve true. Mantém o uso de itens uniforme: a chave é consumida ao falar.
-func _consome_chave() -> bool:
+# e devolve true. Chamado pelo jogo ao selar um pacto que exige uma chave.
+func consome_chave() -> bool:
 	for i in range(inventario.size()):
 		if inventario[i][1].sprite_char == "C":
 			inventario.remove_at(i)

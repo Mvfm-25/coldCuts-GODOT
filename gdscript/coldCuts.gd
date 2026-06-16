@@ -41,6 +41,8 @@ var enemies : Array = []
 var items : Array = []
 var enemies_data : Array = []
 var items_data : Array = []
+# Conteúdo de entidades/palavras.json: enigma, palavras mágicas e pactos.
+var palavras_data : Dictionary = {}
 var entity_labels : Array = []
 var jogador_node : Jogador = null
 
@@ -320,6 +322,7 @@ func _start_game() -> void:
 	dungeon_label.text = current_dungeon.name
 	dungeon_label.show()
 	_log("Aventura iniciada! Personagem: %s (%s)" % [player_name, player_class])
+	_inicia_palavras_magicas()
 
 
 func _load_random_dungeon() -> void:
@@ -341,9 +344,21 @@ func _load_random_dungeon() -> void:
 		push_error("Nenhum arquivo .dungeon encontrado em res://dungeons/")
 		return
 
+	# Masmorras de boss só se alcançam por um pacto (ver _on_pediu_boss): nem o
+	# início, nem o portal da chave podem cair numa delas. Pega na primeira
+	# masmorra normal de uma ordem aleatória.
 	files.shuffle()
-	current_dungeon = CA.DungeonIO.load(files[0])
-	_log("Masmorra carregada: " + (current_dungeon.name if current_dungeon else "ERRO"))
+	current_dungeon = null
+	for path in files:
+		var d = CA.DungeonIO.load(path)
+		if d != null and not d.is_boss:
+			current_dungeon = d
+			break
+
+	if current_dungeon == null:
+		push_error("Nenhuma masmorra normal (não-boss) encontrada em res://dungeons/")
+		return
+	_log("Masmorra carregada: " + current_dungeon.name)
 
 
 func _draw_dungeon() -> void:
@@ -515,8 +530,8 @@ func _create_jogador() -> void:
 	add_child(jogador_node)
 	jogador_node.logged.connect(_log)
 	jogador_node.pediu_portal.connect(_on_pediu_portal)
-	jogador_node.pediu_boss.connect(_on_pediu_boss)
-	jogador_node.pediu_exterminatus.connect(_on_pediu_exterminatus)
+	jogador_node.disse.connect(_on_jogador_disse)
+	jogador_node.progrediu.connect(_on_jogador_progrediu)
 	jogador_node.morreu.connect(_on_jogador_morreu)
 	jogador_node.cria_personagem(player_name, player_class)
 
@@ -541,6 +556,15 @@ func _load_entities_data() -> void:
 		file.close()
 	else:
 		push_warning("Não foi possível abrir res://entidades/items.json")
+
+	file = FileAccess.open("res://entidades/palavras.json", FileAccess.READ)
+	if file:
+		var parsed = JSON.parse_string(file.get_as_text())
+		if parsed is Dictionary:
+			palavras_data = parsed
+		file.close()
+	else:
+		push_warning("Não foi possível abrir res://entidades/palavras.json")
 
 
 func _clear_entity_labels() -> void:
@@ -1004,10 +1028,98 @@ func _enter_new_dungeon() -> void:
 	dungeon_label.text = current_dungeon.name
 
 
-# --- Masmorra de boss (invocada pela fala secreta do Jogador) ---
+# --- Palavras mágicas e pactos (ver entidades/palavras.json) ---
 
-# Disparado pelo sinal pediu_boss do Jogador. O Jogador já validou a frase e a
-# posse da chave; cabe ao jogo escolher e carregar uma masmorra de boss.
+# No início de uma nova aventura: a voz misteriosa entoa o enigma e o Jogador
+# já se lembra das palavras marcadas como "inicial".
+func _inicia_palavras_magicas() -> void:
+	if palavras_data.is_empty() or jogador_node == null:
+		return
+
+	if palavras_data.has("enigma"):
+		_log(str(palavras_data["enigma"]))
+
+	for p in palavras_data.get("palavras", []):
+		if bool(p.get("inicial", false)):
+			jogador_node.lembra_palavra(str(p["palavra"]), str(p.get("glossario", "")))
+			if p.has("voz"):
+				_log(str(p["voz"]))
+
+
+# Disparado quando um contador de progresso do Jogador muda. Concede qualquer
+# palavra cujo limiar de desbloqueio tenha sido agora atingido e deixa a voz
+# misteriosa narrar o feito, ligando a ação à palavra.
+func _on_jogador_progrediu(tipo: String, valor: int) -> void:
+	for p in palavras_data.get("palavras", []):
+		if not p.has("desbloqueio"):
+			continue
+		var d : Dictionary = p["desbloqueio"]
+		if str(d.get("tipo", "")) != tipo:
+			continue
+		if jogador_node.ja_lembra(str(p["palavra"])):
+			continue
+		if valor >= int(d.get("quantidade", 0)):
+			jogador_node.lembra_palavra(str(p["palavra"]), str(p.get("glossario", "")))
+			if p.has("voz"):
+				_log(str(p["voz"]))
+
+
+# Disparado pelo sinal 'disse' do Jogador. O jogo valida a frase contra os
+# pactos de palavras.json: exige que TODAS as palavras já tenham sido lembradas
+# (descobrir a frase não basta — é preciso tê-la ganho) e resolve o efeito.
+func _on_jogador_disse(frase: String) -> void:
+	var dito := frase.strip_edges().to_lower()
+	if dito.is_empty():
+		return
+
+	# Comando de debug: extermina todos os inimigos do mapa.
+	if dito == "1701 exterminatus":
+		_log("EXTERMINATUS! Uma luz purificadora varre a masmorra.")
+		_on_pediu_exterminatus()
+		return
+
+	var pacto = _encontra_pacto(dito)
+	if pacto == null:
+		_log("As palavras se perdem no eco da masmorra...")
+		return
+
+	if not _pacto_todo_lembrado(pacto):
+		_log("As palavras tropeçam em sua língua — uma delas ainda lhe é estranha...")
+		return
+
+	match str(pacto.get("efeito", "")):
+		"invoca_boss":
+			# Invoca uma masmorra de boss, à custa de uma chave do inventário.
+			if not jogador_node.consome_chave():
+				_log("As palavras ressoam com poder, mas falta-lhe uma chave para selar o pacto.")
+				return
+			_log("A chave se desfaz em pó enquanto as palavras rasgam o véu da realidade!")
+			_log("Um covil de boss o reclama...")
+			_on_pediu_boss()
+		_:
+			_log("As palavras se perdem no eco da masmorra...")
+
+
+# Devolve o pacto cuja frase casa exatamente com o que foi dito, ou null.
+func _encontra_pacto(dito: String):
+	for pacto in palavras_data.get("pactos", []):
+		if str(pacto.get("frase", "")).strip_edges().to_lower() == dito:
+			return pacto
+	return null
+
+
+# True se o Jogador já se lembra de cada palavra que compõe a frase do pacto.
+func _pacto_todo_lembrado(pacto) -> bool:
+	for palavra in str(pacto.get("frase", "")).split(" ", false):
+		if not jogador_node.ja_lembra(palavra):
+			return false
+	return true
+
+
+# --- Masmorra de boss ---
+
+# Carrega uma masmorra de boss escolhida ao acaso. Chamado quando um pacto de
+# invocação é selado com sucesso em _on_jogador_disse().
 func _on_pediu_boss() -> void:
 	var boss_path := _pick_random_boss_dungeon()
 	if boss_path == "":
@@ -1052,8 +1164,8 @@ func _pick_random_boss_dungeon() -> String:
 
 # --- Exterminatus (debug: invocado pela fala secreta do Jogador) ---
 
-# Disparado pelo sinal pediu_exterminatus. Remove todos os inimigos do mapa —
-# o Jogador não conhece a lista de inimigos, por isso a limpeza cabe ao jogo.
+# Remove todos os inimigos do mapa. Chamado por _on_jogador_disse() ao reconhecer
+# a frase de debug — o Jogador não conhece a lista de inimigos, a limpeza é do jogo.
 func _on_pediu_exterminatus() -> void:
 	var count := enemies.size()
 	for e in enemies:
