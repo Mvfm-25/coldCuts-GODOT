@@ -190,6 +190,12 @@ class DungeonIO:
 		var parsed : Variant = JSON.parse_string(file.get_as_text())
 		file.close()
 
+		# Ficheiro vazio ou JSON inválido: parse devolve null. Avisa e ignora,
+		# em vez de derrubar quem percorre a pasta (ex.: o seletor de boss).
+		if typeof(parsed) != TYPE_DICTIONARY:
+			push_error("Ficheiro .dungeon inválido ou vazio, ignorado: " + path)
+			return null
+
 		var dungeon := Dungeon.new()
 		dungeon.name = parsed["name"]
 		dungeon.width = parsed["width"]

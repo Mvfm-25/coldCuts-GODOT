@@ -3,6 +3,8 @@ class_name Jogador
 
 # Frase secreta que invoca uma masmorra de boss (ver falar()).
 const FRASE_BOSS := "aye mak sicur"
+# Frase de debug que extermina todos os inimigos do mapa (ver falar()).
+const FRASE_EXTERMINATUS := "1701 exterminatus"
 
 var _sprites: Dictionary = {
 	"Bárbaro":   "res://assets/player/barbaro.png",
@@ -41,6 +43,7 @@ signal morreu(adversario_nome: String)
 signal nivel_subiu(novo_nivel: int)
 signal pediu_portal
 signal pediu_boss
+signal pediu_exterminatus
 
 # Nullable: coldCuts gerencia o Sprite2D diretamente; só é atribuído se o nó existir.
 var _sprite: Sprite2D = null
@@ -203,27 +206,30 @@ func abre_dicionario(pesquisa: String) -> void:
 	_log("Palavra '%s' não está em seu vocabulário..." % pesquisa)
 
 
-# O jogador entoa uma frase em voz alta. Se for a frase secreta E ele tiver uma
-# chave no inventário, pede ao jogo (via pediu_boss) para o transportar a uma
-# masmorra de boss aleatória. O Jogador não conhece o mapa: só dispara o sinal;
-# carregar a masmorra é trabalho do coldCuts.gd.
+# O jogador entoa uma frase em voz alta. Frases reconhecidas disparam sinais
+# para o jogo agir; o Jogador não conhece o mapa nem a lista de inimigos, só
+# dispara o sinal — resolver o efeito é trabalho do coldCuts.gd.
 func falar(frase: String) -> void:
 	var dito := frase.strip_edges()
 	if dito.is_empty():
 		return
 	_log("Você entoa: \"%s\"" % dito)
 
-	if dito.to_lower() != FRASE_BOSS:
-		_log("As palavras se perdem no eco da masmorra...")
-		return
-
-	if not _consome_chave():
-		_log("As palavras ressoam com poder, mas falta-lhe uma chave para selar o pacto.")
-		return
-
-	_log("A chave se desfaz em pó enquanto as palavras rasgam o véu da realidade!")
-	_log("Um covil de boss o reclama...")
-	pediu_boss.emit()
+	match dito.to_lower():
+		FRASE_BOSS:
+			# Invoca uma masmorra de boss, à custa de uma chave do inventário.
+			if not _consome_chave():
+				_log("As palavras ressoam com poder, mas falta-lhe uma chave para selar o pacto.")
+				return
+			_log("A chave se desfaz em pó enquanto as palavras rasgam o véu da realidade!")
+			_log("Um covil de boss o reclama...")
+			pediu_boss.emit()
+		FRASE_EXTERMINATUS:
+			# Comando de debug: extermina todos os inimigos do mapa.
+			_log("EXTERMINATUS! Uma luz purificadora varre a masmorra.")
+			pediu_exterminatus.emit()
+		_:
+			_log("As palavras se perdem no eco da masmorra...")
 
 
 # Procura uma chave (sprite "C") no inventário; se houver, gasta-a (como usa_item)

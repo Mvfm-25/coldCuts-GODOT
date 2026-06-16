@@ -516,6 +516,7 @@ func _create_jogador() -> void:
 	jogador_node.logged.connect(_log)
 	jogador_node.pediu_portal.connect(_on_pediu_portal)
 	jogador_node.pediu_boss.connect(_on_pediu_boss)
+	jogador_node.pediu_exterminatus.connect(_on_pediu_exterminatus)
 	jogador_node.morreu.connect(_on_jogador_morreu)
 	jogador_node.cria_personagem(player_name, player_class)
 
@@ -1036,7 +1037,7 @@ func _pick_random_boss_dungeon() -> String:
 	var fname = dir.get_next()
 	while fname != "":
 		if fname.ends_with(".dungeon"):
-			var path := "res://dungeons/" + fname
+			var path : String = "res://dungeons/" + fname
 			var d = CA.DungeonIO.load(path)
 			if d != null and d.is_boss:
 				boss_files.append(path)
@@ -1047,6 +1048,22 @@ func _pick_random_boss_dungeon() -> String:
 		return ""
 	boss_files.shuffle()
 	return boss_files[0]
+
+
+# --- Exterminatus (debug: invocado pela fala secreta do Jogador) ---
+
+# Disparado pelo sinal pediu_exterminatus. Remove todos os inimigos do mapa —
+# o Jogador não conhece a lista de inimigos, por isso a limpeza cabe ao jogo.
+func _on_pediu_exterminatus() -> void:
+	var count := enemies.size()
+	for e in enemies:
+		if is_instance_valid(e.label):
+			entity_labels.erase(e.label)
+			e.label.queue_free()
+		if is_instance_valid(e):
+			e.queue_free()
+	enemies.clear()
+	_log("Exterminatus concluído: %d inimigo(s) reduzido(s) a cinzas." % count)
 
 
 # --- Diálogos modais ---
