@@ -1078,6 +1078,12 @@ func _on_jogador_disse(frase: String) -> void:
 		_on_pediu_exterminatus()
 		return
 
+	# Comando de debug: concede Pergaminhos ao inventário do jogador.
+	if dito == "2553 codex":
+		_log("CODEX! Um códice ancestral se materializa em suas mãos.")
+		_on_pediu_codex()
+		return
+
 	var pacto = _encontra_pacto(dito)
 	if pacto == null:
 		_log("As palavras se perdem no eco da masmorra...")
@@ -1176,6 +1182,39 @@ func _on_pediu_exterminatus() -> void:
 			e.queue_free()
 	enemies.clear()
 	_log("Exterminatus concluído: %d inimigo(s) reduzido(s) a cinzas." % count)
+
+
+# --- Codex (debug: invocado pela fala secreta do Jogador) ---
+
+# Concede Pergaminhos diretamente ao inventário do jogador. Chamado por
+# _on_jogador_disse() ao reconhecer a frase de debug — o jogo monta os itens
+# (a partir de items.json) e os entrega ao Jogador, que apenas os guarda.
+func _on_pediu_codex() -> void:
+	if not jogador_node:
+		return
+
+	var quantidade := 5
+	var dados := _item_data_por_nome("Pergaminho")
+	for i in range(quantidade):
+		var pergaminho : Item
+		if dados.is_empty():
+			pergaminho = Item.new("Pergaminho", "P", 15, true,
+				"Conhecimento de monges de inúmeros monastérios são colecionadaos neste códice.", -1, -1)
+		else:
+			pergaminho = Item.new(dados["nome"], dados["sprite"], int(dados["valor"]),
+				bool(dados["usavel"]), dados["glossario"], -1, -1)
+		jogador_node.adiciona_item_inventario(pergaminho)
+
+	_log("Codex concluído: %d Pergaminho(s) adicionado(s) ao inventário." % quantidade)
+
+
+# Procura no items.json (já carregado) o dado bruto de um item pelo nome.
+# Devolve um Dictionary vazio se não existir.
+func _item_data_por_nome(nome: String) -> Dictionary:
+	for data in items_data:
+		if data is Dictionary and str(data.get("nome", "")) == nome:
+			return data
+	return {}
 
 
 # --- Diálogos modais ---

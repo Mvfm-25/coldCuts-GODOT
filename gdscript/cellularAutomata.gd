@@ -189,7 +189,7 @@ class DungeonIO:
 			return null
 		var parsed : Variant = JSON.parse_string(file.get_as_text())
 		file.close()
-
+966\za  
 		# Ficheiro vazio ou JSON inválido: parse devolve null. Avisa e ignora,
 		# em vez de derrubar quem percorre a pasta (ex.: o seletor de boss).
 		if typeof(parsed) != TYPE_DICTIONARY:
