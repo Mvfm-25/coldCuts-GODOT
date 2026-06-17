@@ -39,8 +39,10 @@ var terminal = null
 
 var enemies : Array = []
 var items : Array = []
+var armas_mapa : Array = []
 var enemies_data : Array = []
 var items_data : Array = []
+var armas_data : Array = []
 # Conteúdo de entidades/palavras.json: enigma, palavras mágicas e pactos.
 var palavras_data : Dictionary = {}
 var entity_labels : Array = []
@@ -76,6 +78,38 @@ class Item:
 		sprite_char = _sprite
 		valor = _valor
 		usavel = _usavel
+		glossario = _glossario
+		x = _x
+		y = _y
+
+
+# Arma empunhável. O Jogador guarda referências destas (arma_equipada e a lista
+# 'armas'), mas é o jogo que as constrói a partir de entidades/armas.json e que
+# resolve o alvo dentro do alcance (o Jogador continua sem conhecer o mapa).
+class Arma:
+	var nome : String
+	var sprite_char : String
+	var tipo : String                # espada | adaga | lanca | arco
+	var dano : int
+	var alcance : int                # casas que o golpe atinge (1 = corpo-a-corpo)
+	var forca_necessaria : int
+	var precisao_necessaria : int
+	var valor : int
+	var glossario : String
+	var x : int
+	var y : int
+	var label : Label
+
+	func _init(_nome: String, _sprite: String, _tipo: String, _dano: int, _alcance: int,
+			_forca: int, _precisao: int, _valor: int, _glossario: String, _x: int, _y: int) -> void:
+		nome = _nome
+		sprite_char = _sprite
+		tipo = _tipo
+		dano = _dano
+		alcance = _alcance
+		forca_necessaria = _forca
+		precisao_necessaria = _precisao
+		valor = _valor
 		glossario = _glossario
 		x = _x
 		y = _y
@@ -319,6 +353,7 @@ func _start_game() -> void:
 	_spawn_player()
 	_create_jogador()
 	_initialize_dungeon_for_game()
+	_equipa_arma_inicial()
 	dungeon_label.text = current_dungeon.name
 	dungeon_label.show()
 	_log("Aventura iniciada! Personagem: %s (%s)" % [player_name, player_class])
@@ -557,6 +592,15 @@ func _load_entities_data() -> void:
 	else:
 		push_warning("Não foi possível abrir res://entidades/items.json")
 
+	file = FileAccess.open("res://entidades/armas.json", FileAccess.READ)
+	if file:
+		var parsed = JSON.parse_string(file.get_as_text())
+		if parsed is Array:
+			armas_data = parsed
+		file.close()
+	else:
+		push_warning("Não foi possível abrir res://entidades/armas.json")
+
 	file = FileAccess.open("res://entidades/palavras.json", FileAccess.READ)
 	if file:
 		var parsed = JSON.parse_string(file.get_as_text())
@@ -578,6 +622,7 @@ func _clear_entity_labels() -> void:
 			e.queue_free()
 	enemies.clear()
 	items.clear()
+	armas_mapa.clear()
 
 	if is_instance_valid(portal_label):
 		portal_label.queue_free()
@@ -713,11 +758,97 @@ func _populate_items(count: int) -> void:
 	_log("Itens colocados: %d" % placed)
 
 
+# Espalha algumas armas pelo chão da masmorra, para o jogador encontrar e trocar.
+# Mesma lógica de colocação de _populate_items, mas para o array armas_mapa.
+func _populate_armas(count: int) -> void:
+	if armas_data.is_empty():
+		return
+
+	var placed := 0
+	var attempts := 0
+	var max_attempts := count * 10
+
+	while placed < count and attempts < max_attempts:
+		attempts += 1
+		var x := randi_range(0, current_dungeon.width - 1)
+		var y := randi_range(0, current_dungeon.height - 1)
+
+		if current_dungeon.grid[x][y].state != "0":
+			continue
+		if x == player_x and y == player_y:
+			continue
+
+		var occupied := false
+		for it in items:
+			if it.x == x and it.y == y:
+				occupied = true
+				break
+		if not occupied:
+			for a in armas_mapa:
+				if a.x == x and a.y == y:
+					occupied = true
+					break
+		if not occupied:
+			for e in enemies:
+				if e.x == x and e.y == y:
+					occupied = true
+					break
+		if occupied:
+			continue
+
+		var data : Dictionary = armas_data[randi_range(0, armas_data.size() - 1)]
+		var nova := _constroi_arma(data, x, y)
+		nova.label = _spawn_entity_label(nova.sprite_char, x, y, Color(0.4, 0.8, 1.0))
+		armas_mapa.append(nova)
+		placed += 1
+
+	_log("Armas espalhadas: %d" % placed)
+
+
+# Constrói um objeto Arma a partir de uma linha de armas.json.
+func _constroi_arma(data: Dictionary, x: int, y: int) -> Arma:
+	return Arma.new(
+		str(data["nome"]), str(data["sprite"]), str(data["tipo"]),
+		int(data["dano"]), int(data["alcance"]),
+		int(data["forca_necessaria"]), int(data["precisao_necessaria"]),
+		int(data["valor"]), str(data["glossario"]), x, y)
+
+
+# Procura no armas.json (já carregado) o dado bruto de uma arma pelo nome.
+func _arma_data_por_nome(nome: String) -> Dictionary:
+	for data in armas_data:
+		if data is Dictionary and str(data.get("nome", "")) == nome:
+			return data
+	return {}
+
+
+# Arma com que cada classe começa a aventura (ver _equipa_arma_inicial).
+const ARMA_INICIAL := {
+	"Bárbaro": "Lança Longa",
+	"Mago": "Arco Curto",
+	"Cavaleiro": "Espada Curta",
+	"Ladrão": "Adaga",
+}
+
+
+# Entrega ao Jogador a arma inicial da sua classe (chamado uma vez, ao começar o
+# jogo). O jogo constrói a Arma a partir do JSON; o Jogador só a recebe e equipa.
+func _equipa_arma_inicial() -> void:
+	if jogador_node == null:
+		return
+	var nome_arma : String = ARMA_INICIAL.get(jogador_node.classe, "Espada Curta")
+	var data := _arma_data_por_nome(nome_arma)
+	if data.is_empty():
+		return
+	jogador_node.adiciona_arma(_constroi_arma(data, -1, -1))
+
+
 func _initialize_dungeon_for_game() -> void:
 	_clear_entity_labels()
 	_load_entities_data()
 	_populate_enemies(20)
 	_populate_items(10)
+	_populate_armas(3)
 	_update_fov()
 	_update_status_panel()
 
@@ -734,12 +865,16 @@ func _update_status_panel() -> void:
 	for entrada in jogador_node.inventario:
 		ouro += entrada[1].valor
 
-	# Linha da arma deixada reservada para o futuro sistema de troca de armas.
 	var texto := "HP: %d / %d\n" % [jogador_node.hp, jogador_node.hp_maximo]
-	texto += "Ataque: %d    Armadura: %d\n" % [jogador_node.ataque, jogador_node.armadura]
+	texto += "Força: %d    Armadura: %d\n" % [jogador_node.forca, jogador_node.armadura]
 	texto += "Nível: %d    XP: %d / %d\n" % [jogador_node.lvl, jogador_node.xp, jogador_node.xp_proximo_nivel]
 	texto += "Ouro: %d\n" % ouro
-	texto += "[color=#5a7a5a]Arma: — (nenhuma)[/color]"
+	# Dano e acurácia mostrados já incluem o efeito da arma equipada.
+	if jogador_node.arma_equipada != null:
+		texto += "[color=#8aa1c0]Arma: %s (dano %d, acc %d)[/color]" % [
+			jogador_node.arma_equipada.nome, jogador_node.dano_atual(), jogador_node.acuracia_atual()]
+	else:
+		texto += "[color=#5a7a5a]Arma: — (desarmado, dano %d)[/color]" % jogador_node.dano_atual()
 
 	terminal.set_status(texto)
 
@@ -796,6 +931,10 @@ func _input(event : InputEvent) -> void:
 			# Usar item do inventário.
 			_show_use_item_dialog()
 			return
+		KEY_T:
+			# Trocar a arma equipada (arsenal do jogador).
+			_show_weapon_dialog()
+			return
 		KEY_P:
 			# Entrar no portal secreto (se houver um adjacente).
 			_try_enter_portal()
@@ -822,21 +961,35 @@ func _do_attack(dir : Vector2i) -> void:
 	if not jogador_node:
 		return
 
-	var tx := player_x + dir.x
-	var ty := player_y + dir.y
-
+	# A arma equipada decide quantas casas o golpe varre na direção escolhida.
+	# Para o primeiro inimigo na linha (ou para na primeira parede).
+	var alcance := jogador_node.alcance_arma()
 	var alvo = null
 	var bateu_parede := false
 
-	if tx < 0 or tx >= current_dungeon.width or ty < 0 or ty >= current_dungeon.height:
-		bateu_parede = true
-	else:
+	for passo in range(1, alcance + 1):
+		var tx := player_x + dir.x * passo
+		var ty := player_y + dir.y * passo
+
+		if tx < 0 or tx >= current_dungeon.width or ty < 0 or ty >= current_dungeon.height:
+			bateu_parede = true
+			break
+
+		var achou := false
 		for e in enemies:
 			if e.x == tx and e.y == ty:
 				alvo = e
+				achou = true
 				break
-		if alvo == null and current_dungeon.grid[tx][ty].state == "1":
-			bateu_parede = true
+		if achou:
+			break
+
+		# Parede interrompe o golpe ou o projétil. Só conta como "rebate na parede"
+		# se for corpo-a-corpo (primeiro passo); à distância, a flecha apenas para.
+		if current_dungeon.grid[tx][ty].state == "1":
+			if passo == 1:
+				bateu_parede = true
+			break
 
 	var derrotou : bool = jogador_node.ataca(alvo, bateu_parede)
 	if derrotou and alvo != null:
@@ -876,6 +1029,20 @@ func _try_move(new_x : int, new_y : int) -> void:
 				jogador_node.adiciona_item_inventario(collected)
 			else:
 				_log("Item coletado: %s (Valor: %d)" % [collected.nome, collected.valor])
+			break
+
+	# Apanha arma se houver na posição destino
+	for i in range(armas_mapa.size()):
+		if armas_mapa[i].x == new_x and armas_mapa[i].y == new_y:
+			var arma_apanhada : Arma = armas_mapa[i]
+			if is_instance_valid(arma_apanhada.label):
+				entity_labels.erase(arma_apanhada.label)
+				arma_apanhada.label.queue_free()
+			armas_mapa.remove_at(i)
+			if jogador_node:
+				jogador_node.adiciona_arma(arma_apanhada)
+			else:
+				_log("Arma encontrada: %s" % arma_apanhada.nome)
 			break
 
 	player_x = new_x
@@ -1295,6 +1462,137 @@ func _show_use_item_dialog() -> void:
 	btn_close.text = "Fechar"
 	btn_close.pressed.connect(func(): _close_dialog(dialog_layer))
 	vbox.add_child(btn_close)
+
+
+# Resumo dos atributos de uma arma, partilhado pelos dois lados da tela de troca.
+func _arma_stats_texto(arma) -> String:
+	return "%s  [%s]\nDano: %d    Alcance: %d\nForça req.: %d    Precisão req.: %d\nValor: %d" % [
+		arma.nome, arma.tipo, arma.dano, arma.alcance,
+		arma.forca_necessaria, arma.precisao_necessaria, arma.valor]
+
+
+# Tela de troca de arma: à esquerda os stats da arma equipada (com dano/acurácia
+# já efetivos para a força atual), à direita o arsenal guardado. Clicar numa arma
+# do arsenal empunha-a (devolvendo a anterior). Armas cujos requisitos não cumpres
+# aparecem desativadas.
+func _show_weapon_dialog() -> void:
+	if not jogador_node:
+		return
+	if jogador_node.arma_equipada == null and jogador_node.armas.is_empty():
+		_log("Não tens nenhuma arma para empunhar ou trocar.")
+		return
+
+	dialog_open = true
+
+	var dialog_layer = CanvasLayer.new()
+	dialog_layer.layer = 9
+	add_child(dialog_layer)
+
+	var bg = ColorRect.new()
+	bg.color = Color(0.0, 0.0, 0.0, 0.55)
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dialog_layer.add_child(bg)
+
+	var panel = Panel.new()
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.offset_left   = -260
+	panel.offset_top    = -200
+	panel.offset_right  =  260
+	panel.offset_bottom =  200
+	dialog_layer.add_child(panel)
+
+	var margin = MarginContainer.new()
+	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
+	for side in ["margin_top", "margin_left", "margin_right", "margin_bottom"]:
+		margin.add_theme_constant_override(side, 18)
+	panel.add_child(margin)
+
+	var root = VBoxContainer.new()
+	root.add_theme_constant_override("separation", 10)
+	margin.add_child(root)
+
+	var title = Label.new()
+	title.text = "Arsenal — trocar de arma"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 16)
+	root.add_child(title)
+
+	var colunas = HBoxContainer.new()
+	colunas.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	colunas.add_theme_constant_override("separation", 16)
+	root.add_child(colunas)
+
+	# --- Coluna esquerda: arma equipada ---
+	var esq = VBoxContainer.new()
+	esq.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	esq.add_theme_constant_override("separation", 6)
+	colunas.add_child(esq)
+
+	var esq_titulo = Label.new()
+	esq_titulo.text = "Equipada"
+	esq_titulo.add_theme_font_size_override("font_size", 14)
+	esq.add_child(esq_titulo)
+
+	var equipada = Label.new()
+	equipada.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if jogador_node.arma_equipada != null:
+		equipada.text = "%s\n\nDano efetivo: %d\nAcurácia efetiva: %d" % [
+			_arma_stats_texto(jogador_node.arma_equipada),
+			jogador_node.dano_atual(), jogador_node.acuracia_atual()]
+	else:
+		equipada.text = "Desarmado.\n\nDano (só força): %d" % jogador_node.dano_atual()
+	esq.add_child(equipada)
+
+	# --- Coluna direita: armas no arsenal ---
+	var dir = VBoxContainer.new()
+	dir.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dir.add_theme_constant_override("separation", 6)
+	colunas.add_child(dir)
+
+	var dir_titulo = Label.new()
+	dir_titulo.text = "No arsenal (clica para empunhar)"
+	dir_titulo.add_theme_font_size_override("font_size", 14)
+	dir.add_child(dir_titulo)
+
+	var scroll = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	dir.add_child(scroll)
+
+	var lista = VBoxContainer.new()
+	lista.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lista.add_theme_constant_override("separation", 6)
+	scroll.add_child(lista)
+
+	if jogador_node.armas.is_empty():
+		var vazio = Label.new()
+		vazio.text = "(arsenal vazio)"
+		lista.add_child(vazio)
+	else:
+		for indice in range(jogador_node.armas.size()):
+			var arma = jogador_node.armas[indice]
+			var apto : bool = jogador_node.cumpre_requisitos(arma)
+			var marca : String = "" if apto else "   ✗ requisitos"
+			var btn = Button.new()
+			btn.custom_minimum_size = Vector2(0, 54)
+			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			btn.disabled = not apto
+			btn.text = "%s (dano %d, alc %d)\nForça req. %d / Precisão req. %d%s" % [
+				arma.nome, arma.dano, arma.alcance,
+				arma.forca_necessaria, arma.precisao_necessaria, marca]
+			var idx := indice
+			btn.pressed.connect(func():
+				_close_dialog(dialog_layer)
+				jogador_node.equipa_arma(idx)
+				_update_status_panel()
+				_show_weapon_dialog()
+			)
+			lista.add_child(btn)
+
+	var btn_fechar = Button.new()
+	btn_fechar.text = "Fechar"
+	btn_fechar.pressed.connect(func(): _close_dialog(dialog_layer))
+	root.add_child(btn_fechar)
 
 
 func _show_dictionary_dialog() -> void:

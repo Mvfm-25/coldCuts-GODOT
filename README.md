@@ -132,6 +132,7 @@ Definidos em `entidades/palavras.json` e validados pelo `coldCuts.gd`.
 | Atacar | `A` + direção |
 | Inventário | `I` |
 | Usar item | `U` |
+| Trocar arma | `T` |
 | Dicionário | `G` |
 | Portal | `P` |
 | Falar | `F` |
