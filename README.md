@@ -1,6 +1,6 @@
 # coldCuts-GODOT
 Versão criada em Godot & GDScript do jogo originalmente escrito em Python no repositório `cellularAutomata`.
-[11-04-2026][mvfm] — última atualização: [17-06-2026]
+[11-04-2026][mvfm] — última atualização: [19-06-2026]
 
 ---
 
@@ -49,6 +49,7 @@ coldCuts-GODOT/
 ├── entidades/
 │   ├── adversarios.json       # Catálogo de inimigos (stats)
 │   ├── items.json             # Catálogo de itens
+│   ├── armas.json             # Catálogo de armas (dano, alcance, requisitos)
 │   └── palavras.json          # Enigma, palavras mágicas e pactos
 ├── dungeons/                  # Masmorras salvas em JSON (.dungeon), incluindo as de boss
 ├── assets/
@@ -88,12 +89,19 @@ Orquestrador do jogo e dono de todo o estado. Ao iniciar, mostra um menu para cr
 
 **Sistemas implementados:**
 
-- **Quatro classes jogáveis** — Bárbaro, Mago, Cavaleiro e Ladrão, cada uma com HP, ataque,
-  armadura, acurácia e curva de XP próprios.
+- **Quatro classes jogáveis** — Bárbaro, Mago, Cavaleiro e Ladrão, cada uma com HP, força,
+  armadura, acurácia e curva de XP próprios. A **força** é a base do dano e também o requisito
+  que decide que armas o jogador consegue empunhar.
 - **Campo de visão / fog of war** — *recursive shadowcasting* em 8 octantes com raio de luz à
   volta do jogador; o resto do mapa permanece escuro.
-- **Combate direcional** — `A` + direção, espelhando o `coldCuts.py` original. A armadura absorve
-  e desgasta-se antes do dano ao HP; precisão decide o acerto.
+- **Combate direcional** — `A` + direção, espelhando o `coldCuts.py` original. O dano e o alcance
+  vêm da arma equipada (somados à força); a armadura absorve e desgasta-se antes do dano ao HP, e a
+  precisão decide o acerto.
+- **Sistema de armas** (`entidades/armas.json`) — arsenal com Espada Curta, Adaga, Lança Longa,
+  Arco Curto, Martelo de Guerra e Machado de Bronze, cada um com dano, **alcance** próprio (1 a 5 —
+  o arco ataca à distância) e requisitos de força e precisão. Armas espalham-se pelo chão da masmorra
+  para serem apanhadas; empunhar uma exige força/acurácia suficientes. Força a mais do que o exigido
+  dá bónus de dano, mas penaliza a acurácia.
 - **Inimigos com IA** (`adversarios.gd`) — perseguem o jogador dentro do alcance de visão (distância
   de Chebyshev) e atacam quando adjacentes. Como o jogador, só declaram intenção de movimento; o
   jogo valida o passo.
@@ -127,7 +135,7 @@ Definidos em `entidades/palavras.json` e validados pelo `coldCuts.gd`.
 
 | Ação | Tecla |
 |---|---|
-| Mover (cardeais) | Setas / W S A D / Numpad 8 2 4 6 |
+| Mover (cardeais) | Setas / W S D + Seta Esquerda / Numpad 8 2 4 6 |
 | Mover (diagonais) | Q E Z C / Numpad 7 9 1 3 |
 | Atacar | `A` + direção |
 | Inventário | `I` |

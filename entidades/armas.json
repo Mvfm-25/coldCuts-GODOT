@@ -2,5 +2,7 @@
 	{"nome": "Espada Curta", "sprite": "/", "tipo": "espada", "dano": 12, "alcance": 1, "forca_necessaria": 10, "precisao_necessaria": 60, "valor": 40, "glossario": "Aço fiável, equilibrado entre o corte e a guarda. A primeira lâmina de muitos heróis."},
 	{"nome": "Adaga", "sprite": ";", "tipo": "adaga", "dano": 6, "alcance": 1, "forca_necessaria": 4, "precisao_necessaria": 85, "valor": 20, "glossario": "Rápida e silenciosa; perdoa pouco a falta de mira, mas recompensa a mão certeira."},
 	{"nome": "Lança Longa", "sprite": "|", "tipo": "lanca", "dano": 14, "alcance": 2, "forca_necessaria": 14, "precisao_necessaria": 55, "valor": 55, "glossario": "Atinge antes de ser atingida — se a souberes empunhar pelo peso."},
-	{"nome": "Arco Curto", "sprite": ")", "tipo": "arco", "dano": 9, "alcance": 5, "forca_necessaria": 8, "precisao_necessaria": 75, "valor": 50, "glossario": "A morte chega de longe, mas exige mãos firmes e olho atento."}
+	{"nome": "Arco Curto", "sprite": ")", "tipo": "arco", "dano": 9, "alcance": 5, "forca_necessaria": 8, "precisao_necessaria": 75, "valor": 50, "glossario": "A morte chega de longe, mas exige mãos firmes e olho atento."},
+	{"nome": "Martelo De Guerra", "sprite": "T", "tipo": "martelo", "dano": 20, "alcance": 1, "forca_necessaria": 18, "precisao_necessaria": 40, "valor": 70, "glossario": "Destrói armaduras e ossos com igual eficácia — mas cuidado para não se tornar um peso morto."},
+	{"nome": "Machado de Bronze", "sprite": "]", "tipo": "machado", "dano": 16, "alcance": 1, "forca_necessaria": 12, "precisao_necessaria": 50, "valor": 60, "glossario": "Corta com força bruta, mas exige força e coragem para ser manejado."}
 ]
