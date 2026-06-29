@@ -38,6 +38,12 @@ var player_class : String = ""
 var terminal = null
 
 var enemies : Array = []
+# Corpos de inimigos tombados, guardados para o feitiço Reviver do Necromante.
+# Cada entrada: { "dados": Dictionary (linha do adversarios.json), "x": int, "y": int }.
+var corpos : Array = []
+# Nomes de criaturas cuja nota de bestiário já foi registada no dicionário do
+# Jogador (uma vez por aventura). Evita anotar a mesma criatura a cada avistamento.
+var bestiario_conhecido : Array = []
 var items : Array = []
 var armas_mapa : Array = []
 var enemies_data : Array = []
@@ -345,6 +351,8 @@ func _show_class_dialog() -> void:
 
 func _start_game() -> void:
 	game_over = false
+	# Nova aventura, novo dicionário (o Jogador é recriado): esquecer o bestiário.
+	bestiario_conhecido.clear()
 	menu_layer.hide()
 	_load_random_dungeon()
 	if current_dungeon == null:
@@ -549,7 +557,12 @@ func _update_fov() -> void:
 
 	for e in enemies:
 		if is_instance_valid(e.label):
-			e.label.visible = visible.has(Vector2i(e.x, e.y))
+			var a_vista : bool = visible.has(Vector2i(e.x, e.y))
+			e.label.visible = a_vista
+			# Primeira vez que a criatura entra na luz: o Jogador anota-a no bestiário.
+			if a_vista and jogador_node != null and not bestiario_conhecido.has(e.nome):
+				bestiario_conhecido.append(e.nome)
+				jogador_node.aprende_bestiario(e.nome, e.glossario)
 	for it in items:
 		if is_instance_valid(it.label):
 			it.label.visible = visible.has(Vector2i(it.x, it.y))
@@ -621,6 +634,7 @@ func _clear_entity_labels() -> void:
 		if is_instance_valid(e):
 			e.queue_free()
 	enemies.clear()
+	corpos.clear()
 	items.clear()
 	armas_mapa.clear()
 
@@ -867,6 +881,8 @@ func _update_status_panel() -> void:
 
 	var texto := "HP: %d / %d\n" % [jogador_node.hp, jogador_node.hp_maximo]
 	texto += "Força: %d    Armadura: %d\n" % [jogador_node.forca, jogador_node.armadura]
+	if jogador_node.mana_maximo > 0:
+		texto += "Mana: %d / %d\n" % [jogador_node.mana, jogador_node.mana_maximo]
 	texto += "Nível: %d    XP: %d / %d\n" % [jogador_node.lvl, jogador_node.xp, jogador_node.xp_proximo_nivel]
 	texto += "Ouro: %d\n" % ouro
 	# Dano e acurácia mostrados já incluem o efeito da arma equipada.
@@ -960,6 +976,8 @@ func _input(event : InputEvent) -> void:
 func _do_attack(dir : Vector2i) -> void:
 	if not jogador_node:
 		return
+	if _jogador_perde_turno_se_congelado():
+		return
 
 	# A arma equipada decide quantas casas o golpe varre na direção escolhida.
 	# Para o primeiro inimigo na linha (ou para na primeira parede).
@@ -993,6 +1011,7 @@ func _do_attack(dir : Vector2i) -> void:
 
 	var derrotou : bool = jogador_node.ataca(alvo, bateu_parede)
 	if derrotou and alvo != null:
+		_regista_corpo(alvo)
 		if is_instance_valid(alvo.label):
 			entity_labels.erase(alvo.label)
 			alvo.label.queue_free()
@@ -1004,6 +1023,8 @@ func _do_attack(dir : Vector2i) -> void:
 
 
 func _try_move(new_x : int, new_y : int) -> void:
+	if _jogador_perde_turno_se_congelado():
+		return
 	if new_x < 0 or new_x >= current_dungeon.width:
 		return
 	if new_y < 0 or new_y >= current_dungeon.height:
@@ -1071,6 +1092,20 @@ func _process_enemy_turns() -> void:
 		if not is_instance_valid(e):
 			continue
 
+		# Preso no gelo (feitiço Congelar do jogador): perde a vez.
+		if e.congelado > 0:
+			e.congelado -= 1
+			continue
+
+		# Antes de agir fisicamente, decide se lança uma magia (se a tiver).
+		var dist := maxi(abs(e.x - player_x), abs(e.y - player_y))
+		var magia := e.decide_magia(dist)
+		if not magia.is_empty():
+			_resolve_magia_inimigo(e, magia)
+			if game_over:
+				return
+			continue
+
 		if e.esta_adjacente(player_x, player_y):
 			e.ataca(jogador_node)
 			if game_over:
@@ -1091,6 +1126,12 @@ func _process_enemy_turns() -> void:
 			if _tile_livre_para_inimigo(nx, ny, e):
 				e.move_para(nx, ny)
 				break
+
+	# Fim do turno: todos recuperam um pouco do fôlego das palavras.
+	for e in enemies:
+		if is_instance_valid(e):
+			e.recupera_mana(1)
+	jogador_node.recupera_mana(1)
 
 	# A posição dos inimigos mudou: reavaliar o que está visível.
 	_update_fov()
@@ -1230,6 +1271,20 @@ func _on_jogador_progrediu(tipo: String, valor: int) -> void:
 			if p.has("voz"):
 				_log(str(p["voz"]))
 
+	# O mesmo progresso também desbloqueia feitiços (ver "magias" em palavras.json).
+	for m in palavras_data.get("magias", []):
+		if not m.has("desbloqueio"):
+			continue
+		var dm : Dictionary = m["desbloqueio"]
+		if str(dm.get("tipo", "")) != tipo:
+			continue
+		if jogador_node.ja_aprendeu_magia(str(m["nome"])):
+			continue
+		if valor >= int(dm.get("quantidade", 0)):
+			jogador_node.aprende_magia(str(m["nome"]), str(m.get("incantacao", "")), str(m.get("glossario", "")))
+			if m.has("voz"):
+				_log(str(m["voz"]))
+
 
 # Disparado pelo sinal 'disse' do Jogador. O jogo valida a frase contra os
 # pactos de palavras.json: exige que TODAS as palavras já tenham sido lembradas
@@ -1249,6 +1304,12 @@ func _on_jogador_disse(frase: String) -> void:
 	if dito == "2553 codex":
 		_log("CODEX! Um códice ancestral se materializa em suas mãos.")
 		_on_pediu_codex()
+		return
+
+	# Uma incantação de feitiço? (ver "magias" em palavras.json)
+	var magia = _encontra_magia_jogador(dito)
+	if magia != null:
+		_lanca_magia_jogador(magia)
 		return
 
 	var pacto = _encontra_pacto(dito)
@@ -1286,6 +1347,208 @@ func _pacto_todo_lembrado(pacto) -> bool:
 	for palavra in str(pacto.get("frase", "")).split(" ", false):
 		if not jogador_node.ja_lembra(palavra):
 			return false
+	return true
+
+
+# --- Magia: resolução dos feitiços (jogador e inimigos) ---
+# As definições vivem nos JSON (palavras.json para o jogador, adversarios.json
+# para os inimigos). As entidades só declaram a intenção e gerem o seu mana; é
+# AQUI que se conhece o mapa e se resolvem alvos, áreas e corpos.
+
+# Descrição curta do efeito de um feitiço, para a referência do diálogo de falar.
+func _magia_descricao_curta(m: Dictionary) -> String:
+	match str(m.get("tipo", "")):
+		"dano":      return "relâmpago no inimigo mais próximo"
+		"cura":      return "fecha as tuas próprias feridas"
+		"congelar":  return "rouba um turno ao inimigo mais próximo"
+		"area_dano": return "fere todos os inimigos em redor"
+	return "efeito desconhecido"
+
+
+# Procura nas magias do jogador (palavras.json) a que casa com a incantação dita.
+func _encontra_magia_jogador(dito: String):
+	for m in palavras_data.get("magias", []):
+		if str(m.get("incantacao", "")).strip_edges().to_lower() == dito:
+			return m
+	return null
+
+
+# Lança um feitiço do jogador. Valida que ele o domina e tem mana; resolve o
+# alvo/área a partir do mapa; aplica o efeito e gasta o turno (os inimigos reagem).
+func _lanca_magia_jogador(magia: Dictionary) -> void:
+	var nome_magia := str(magia.get("nome", "magia"))
+
+	if not jogador_node.ja_aprendeu_magia(nome_magia):
+		_log("A palavra forma-se na tua boca, mas falta-lhe poder — ainda não dominas '%s'." % nome_magia)
+		return
+	if _jogador_perde_turno_se_congelado():
+		return
+
+	var custo := int(magia.get("custo_mana", 0))
+	if jogador_node.mana < custo:
+		_log("As sílabas esvaem-se: falta-te mana para %s (precisa de %d, tens %d)." % [nome_magia, custo, jogador_node.mana])
+		return
+
+	var tipo := str(magia.get("tipo", ""))
+	var alcance := int(magia.get("alcance", 0))
+
+	match tipo:
+		"cura":
+			jogador_node.gasta_mana(custo)
+			jogador_node.cura_se(int(magia.get("cura", 0)))
+		"dano", "congelar":
+			var alvo = _inimigo_mais_proximo(alcance)
+			if alvo == null:
+				_log("O feitiço busca um alvo e não o encontra ao alcance.")
+				return
+			jogador_node.gasta_mana(custo)
+			if tipo == "dano":
+				_log("Um raio parte de %s e fende %s!" % [jogador_node.nome, alvo.nome])
+				_aplica_dano_magico_inimigo(alvo, int(magia.get("dano", 0)))
+			else:
+				_log("O gelo prende %s no lugar!" % alvo.nome)
+				alvo.congelado = maxi(alvo.congelado, int(magia.get("duracao", 1)))
+		"area_dano":
+			var atingidos := _inimigos_no_raio(alcance)
+			if atingidos.is_empty():
+				_log("O granizo cai sobre pedra vazia — nenhum inimigo por perto.")
+				return
+			jogador_node.gasta_mana(custo)
+			_log("Granizo desaba à volta de %s, ferindo %d inimigo(s)!" % [jogador_node.nome, atingidos.size()])
+			for alvo in atingidos:
+				_aplica_dano_magico_inimigo(alvo, int(magia.get("dano", 0)))
+		_:
+			_log("As palavras ressoam, mas o feitiço escapa-te.")
+			return
+
+	# Lançar um feitiço gasta o turno: os adversários reagem a seguir.
+	_update_status_panel()
+	_process_enemy_turns()
+
+
+# Inimigo vivo mais próximo do jogador, dentro do alcance (Chebyshev). Null se nenhum.
+func _inimigo_mais_proximo(alcance: int):
+	var melhor = null
+	var melhor_dist := 1 << 30
+	for e in enemies:
+		if not is_instance_valid(e):
+			continue
+		var d := maxi(abs(e.x - player_x), abs(e.y - player_y))
+		if d <= alcance and d < melhor_dist:
+			melhor_dist = d
+			melhor = e
+	return melhor
+
+
+# Todos os inimigos vivos dentro de 'raio' tiles do jogador (área do Chuva de Gelo).
+func _inimigos_no_raio(raio: int) -> Array:
+	var lista: Array = []
+	for e in enemies:
+		if not is_instance_valid(e):
+			continue
+		if maxi(abs(e.x - player_x), abs(e.y - player_y)) <= raio:
+			lista.append(e)
+	return lista
+
+
+# Aplica dano mágico (ignora armadura) a um inimigo e remove-o se cair. Espelha a
+# remoção de _do_attack e credita o abate ao jogador (XP + progresso).
+func _aplica_dano_magico_inimigo(alvo, dano: int) -> void:
+	alvo.hp -= dano
+	_log("%d de dano mágico em %s! (HP: %d)" % [dano, alvo.nome, alvo.hp])
+	if alvo.hp <= 0:
+		jogador_node.registra_abate(alvo.nome)
+		_regista_corpo(alvo)
+		if is_instance_valid(alvo.label):
+			entity_labels.erase(alvo.label)
+			alvo.label.queue_free()
+		enemies.erase(alvo)
+		alvo.queue_free()
+
+
+# Resolve uma magia lançada por um adversário (escolhida em Adversario.decide_magia).
+func _resolve_magia_inimigo(e, magia: Dictionary) -> void:
+	var custo := int(magia.get("custo_mana", 0))
+	if not e.gasta_mana(custo):
+		return
+
+	var tipo := str(magia.get("tipo", ""))
+	var nome_magia := str(magia.get("nome", "magia"))
+	_log("%s entoa %s!" % [e.nome, nome_magia])
+
+	match tipo:
+		"dano":
+			jogador_node.sofre_dano_magico(int(magia.get("dano", 0)), e.nome, "(raio)")
+		"area_dano":
+			jogador_node.sofre_dano_magico(int(magia.get("dano", 0)), e.nome, "(gelo)")
+		"congelar":
+			jogador_node.congela(int(magia.get("duracao", 1)))
+		"cura":
+			e.cura_se(int(magia.get("cura", 0)))
+		"reviver":
+			_reanima_servo(e, int(magia.get("alcance", 3)))
+		_:
+			_log("A magia de %s dissipa-se sem efeito." % e.nome)
+
+
+# Ergue um corpo tombado perto do conjurador (feitiço Reviver do Necromante),
+# com metade da vida. Fizz se não houver corpos no alcance ou casas livres.
+func _reanima_servo(necro, alcance: int) -> void:
+	var idx := -1
+	for i in range(corpos.size()):
+		var c = corpos[i]
+		var cx := int(c["x"])
+		var cy := int(c["y"])
+		if maxi(abs(cx - necro.x), abs(cy - necro.y)) <= alcance and _tile_livre_para_inimigo(cx, cy, null):
+			idx = i
+			break
+	if idx == -1:
+		_log("O chamado de %s não encontra ossos para erguer." % necro.nome)
+		return
+
+	var corpo = corpos[idx]
+	corpos.remove_at(idx)
+	var data : Dictionary = corpo["dados"]
+	var rx := int(corpo["x"])
+	var ry := int(corpo["y"])
+
+	var enemy := Adversario.new()
+	enemy.tile_size = tile_size
+	add_child(enemy)
+	enemy.logged.connect(_log)
+	enemy.cria_adversario(data, rx, ry)
+	enemy.hp = maxi(1, enemy.hp_maximo / 2)   # ergue-se com metade da vida
+	enemy.label = _spawn_entity_label(enemy.sprite_char, rx, ry, Color(0.7, 0.3, 0.9))
+	enemies.append(enemy)
+	_update_fov()
+	_log("%s ergue %s dentre os mortos!" % [necro.nome, enemy.nome])
+
+
+# Guarda o corpo de um inimigo tombado (dados originais + posição), para que um
+# Necromante o possa reerguer mais tarde.
+func _regista_corpo(adv) -> void:
+	var dados := _enemy_data_por_nome(adv.nome)
+	if dados.is_empty():
+		return
+	corpos.append({ "dados": dados, "x": adv.x, "y": adv.y })
+
+
+# Procura no adversarios.json (já carregado) o dado bruto de um inimigo pelo nome.
+func _enemy_data_por_nome(nome: String) -> Dictionary:
+	for data in enemies_data:
+		if data is Dictionary and str(data.get("nome", "")) == nome:
+			return data
+	return {}
+
+
+# Se o jogador está congelado, consome um turno (sem agir) e devolve true. Os
+# inimigos jogam mesmo assim. Usado nos pontos de ação do jogador (mover/atacar/falar).
+func _jogador_perde_turno_se_congelado() -> bool:
+	if jogador_node == null or jogador_node.congelado <= 0:
+		return false
+	jogador_node.congelado -= 1
+	_log("%s está preso no gelo e perde o turno!" % jogador_node.nome)
+	_process_enemy_turns()
 	return true
 
 
@@ -1692,10 +1955,10 @@ func _show_speak_dialog() -> void:
 
 	var panel = Panel.new()
 	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left   = -170
-	panel.offset_top    =  -95
-	panel.offset_right  =  170
-	panel.offset_bottom =   95
+	panel.offset_left   = -190
+	panel.offset_top    = -200
+	panel.offset_right  =  190
+	panel.offset_bottom =  200
 	dialog_layer.add_child(panel)
 
 	var margin = MarginContainer.new()
@@ -1705,7 +1968,7 @@ func _show_speak_dialog() -> void:
 	panel.add_child(margin)
 
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 14)
+	vbox.add_theme_constant_override("separation", 10)
 	margin.add_child(vbox)
 
 	var title = Label.new()
@@ -1718,6 +1981,40 @@ func _show_speak_dialog() -> void:
 	edit.placeholder_text = "O que deseja dizer?"
 	edit.max_length = 48
 	vbox.add_child(edit)
+
+	# Atalho: clicar numa palavra de poder preenche a caixa com a sua incantação;
+	# o jogador confirma na mesma com "Falar" (tudo continua a passar pela fala).
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+
+	var ref_titulo = Label.new()
+	ref_titulo.text = "Palavras de poder (clica para preencher)"
+	ref_titulo.add_theme_font_size_override("font_size", 13)
+	vbox.add_child(ref_titulo)
+
+	var lista_magias = VBoxContainer.new()
+	lista_magias.add_theme_constant_override("separation", 6)
+	vbox.add_child(lista_magias)
+
+	for m in palavras_data.get("magias", []):
+		var inc : String = str(m.get("incantacao", ""))
+		var nome_magia : String = str(m.get("nome", ""))
+		var custo : int = int(m.get("custo_mana", 0))
+		var aprendida : bool = jogador_node.ja_aprendeu_magia(nome_magia)
+		var btn_magia = Button.new()
+		btn_magia.custom_minimum_size = Vector2(0, 44)
+		btn_magia.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		btn_magia.disabled = not aprendida
+		if aprendida:
+			btn_magia.text = "«%s» — %s   (%d mana)\n%s" % [inc, nome_magia, custo, _magia_descricao_curta(m)]
+			btn_magia.pressed.connect(func():
+				edit.text = inc
+				edit.caret_column = inc.length()
+				edit.grab_focus()
+			)
+		else:
+			btn_magia.text = "«%s» — ???" % inc
+		lista_magias.add_child(btn_magia)
 
 	var fill = Control.new()
 	fill.size_flags_vertical = Control.SIZE_EXPAND_FILL

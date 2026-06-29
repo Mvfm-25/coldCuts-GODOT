@@ -31,6 +31,10 @@ var hp_maximo: int = 0
 var forca: int = 0
 var armadura: int = 0
 var acuracia: int = 0
+# Fôlego das palavras de poder: cada feitiço (ver falar()/magias) gasta mana;
+# regenera devagar a cada turno e enche-se por inteiro a cada nível.
+var mana: int = 0
+var mana_maximo: int = 0
 
 # --- Equilíbrio do dano por arma (ajusta estes valores à vontade) ---
 # Força ACIMA do requisito da arma rende dano extra, mas a esse mesmo excedente
@@ -58,6 +62,12 @@ var inimigos_derrotados: int = 0
 var pergaminhos_lidos: int = 0
 # Palavras mágicas já lembradas, em minúsculas (ver ja_lembra()/lembra_palavra()).
 var palavras_lembradas: Array = []
+# Feitiços já dominados, pelo nome em minúsculas (ver aprende_magia()). A sua
+# definição (mana, alcance, efeito) vive em palavras.json e é resolvida pelo
+# coldCuts.gd — o Jogador só sabe que os domina e quanto mana tem.
+var magias_aprendidas: Array = []
+# Turnos restantes preso no gelo (feitiço Congelar inimigo). > 0 = perde a vez.
+var congelado: int = 0
 
 # Roteamento de texto: qualquer print() do jogador passa por aqui.
 # coldCuts.gd conecta este sinal ao seu _log() para exibir no terminal in-game.
@@ -92,22 +102,26 @@ func cria_personagem(nome_jogador: String, escolha_classe: String) -> void:
 		"1", "Bárbaro":
 			classe = "Bárbaro"
 			hp = 150; hp_maximo = 150; forca = 20; armadura = 0; acuracia = 80; xp_proximo_nivel = 100
+			mana = 0; mana_maximo = 0
 		"2", "Mago":
 			classe = "Mago"
 			hp = 100; hp_maximo = 100; forca = 15; armadura = 5; acuracia = 85; xp_proximo_nivel = 175
+			mana = 40; mana_maximo = 40
 		"3", "Cavaleiro":
 			classe = "Cavaleiro"
 			hp = 125; hp_maximo = 125; forca = 10; armadura = 10; acuracia = 90; xp_proximo_nivel = 150
+			mana = 10; mana_maximo = 10
 		"4", "Ladrão":
 			classe = "Ladrão"
 			hp = 110; hp_maximo = 110; forca = 12; armadura = 5; acuracia = 95; xp_proximo_nivel = 125
+			mana = 15; mana_maximo = 15
 
 	if _sprite:
 		var tex_path: String = _sprites.get(classe, "")
 		if tex_path != "" and ResourceLoader.exists(tex_path):
 			_sprite.texture = load(tex_path)
 
-	_log("Personagem: %s | Classe: %s | HP: %d | Força: %d | Armadura: %d" % [nome, classe, hp, forca, armadura])
+	_log("Personagem: %s | Classe: %s | HP: %d | Força: %d | Armadura: %d | Mana: %d" % [nome, classe, hp, forca, armadura, mana])
 
 
 # --- Armas: dano, acurácia e alcance efetivos ---
@@ -177,12 +191,19 @@ func ataca(alvo, bateu_parede: bool = false) -> bool:
 		_log("A armadura de %s resistiu completamente!" % alvo.nome)
 
 	if alvo.hp <= 0:
-		_log("*** Você derrotou %s! ***" % alvo.nome)
-		checa_nivel(50)
-		inimigos_derrotados += 1
-		progrediu.emit("inimigos_derrotados", inimigos_derrotados)
+		registra_abate(alvo.nome)
 		return true
 	return false
+
+
+# Contabiliza um inimigo derrotado, seja por arma (ataca()) ou por feitiço
+# (resolvido no coldCuts.gd). Concede XP e faz progredir o contador que
+# desbloqueia palavras/magias (sinal 'progrediu').
+func registra_abate(nome_alvo: String) -> void:
+	_log("*** Você derrotou %s! ***" % nome_alvo)
+	checa_nivel(50)
+	inimigos_derrotados += 1
+	progrediu.emit("inimigos_derrotados", inimigos_derrotados)
 
 
 func checa_inventario() -> void:
@@ -281,10 +302,12 @@ func checa_nivel(adicao_xp: int) -> void:
 		_log("Parabéns! Você subiu de nível!")
 		match classe:
 			"Bárbaro": hp += 15; hp_maximo += 15; forca += 5; armadura += 1
-			"Mago":    hp += 5;  hp_maximo += 5;  forca += 7; armadura += 2
-			"Cavaleiro": hp += 10; hp_maximo += 10; forca += 3; armadura += 5
-			"Ladrão":  hp += 5;  hp_maximo += 5;  forca += 4; armadura += 3
-		_log("Nível: %d | HP: %d | Força: %d | Armadura: %d" % [lvl, hp, forca, armadura])
+			"Mago":    hp += 5;  hp_maximo += 5;  forca += 7; armadura += 2; mana_maximo += 8
+			"Cavaleiro": hp += 10; hp_maximo += 10; forca += 3; armadura += 5; mana_maximo += 2
+			"Ladrão":  hp += 5;  hp_maximo += 5;  forca += 4; armadura += 3; mana_maximo += 3
+		# Subir de nível restaura todo o fôlego das palavras.
+		mana = mana_maximo
+		_log("Nível: %d | HP: %d | Força: %d | Armadura: %d | Mana: %d" % [lvl, hp, forca, armadura, mana])
 		nivel_subiu.emit(lvl)
 	else:
 		xp += adicao_xp
@@ -296,6 +319,16 @@ func lida_morte(adversario_nome: String) -> void:
 	_log("%s se certificou disso!" % adversario_nome)
 	_log("Você passou %d meses nas cavernas... Acumulou %d de conhecimento." % [lvl, xp])
 	morreu.emit(adversario_nome)
+
+
+# Regista a nota de bestiário de uma criatura no dicionário (chamado pelo
+# coldCuts.gd ao avistá-la pela primeira vez). Fica depois pesquisável pelo nome
+# da criatura, tal como os itens apanhados.
+func aprende_bestiario(nome_criatura: String, glossario: String) -> void:
+	if glossario.strip_edges().is_empty():
+		return
+	dicionario.append([nome_criatura, glossario])
+	_log("Anotaste %s nas tuas margens." % nome_criatura)
 
 
 func abre_dicionario(pesquisa: String) -> void:
@@ -320,6 +353,63 @@ func lembra_palavra(palavra: String, glossario: String) -> void:
 
 func ja_lembra(palavra: String) -> bool:
 	return palavra.strip_edges().to_lower() in palavras_lembradas
+
+
+# --- Magia: mana, feitiços aprendidos e os seus efeitos sobre o próprio Jogador ---
+# Tal como nas palavras, o Jogador não conhece o mapa nem os inimigos: aprende a
+# magia, gere o seu mana e sabe sofrer/curar-se. Quem resolve o alvo e a área de
+# cada feitiço é o coldCuts.gd, a partir de palavras.json.
+
+# Concede um feitiço (chamado pelo coldCuts.gd ao cruzar um limiar de progresso).
+# A incantação entra no vocabulário (para a fala a reconhecer e o dicionário a
+# revelar) e o feitiço fica disponível para lançar.
+func aprende_magia(nome_magia: String, incantacao: String, glossario: String) -> void:
+	var chave := nome_magia.strip_edges().to_lower()
+	if chave.is_empty() or chave in magias_aprendidas:
+		return
+	magias_aprendidas.append(chave)
+	# A incantação é a palavra a dizer: guarda-a no vocabulário e revela-a na consulta.
+	lembra_palavra(incantacao, "Incantação de %s. %s" % [nome_magia, glossario])
+	dicionario.append([nome_magia, "Incantação: «%s». %s" % [incantacao, glossario]])
+
+
+func ja_aprendeu_magia(nome_magia: String) -> bool:
+	return nome_magia.strip_edges().to_lower() in magias_aprendidas
+
+
+# Gasta mana se houver o bastante; devolve false (sem gastar) caso contrário.
+func gasta_mana(custo: int) -> bool:
+	if mana < custo:
+		return false
+	mana -= custo
+	return true
+
+
+func recupera_mana(quantia: int) -> void:
+	mana = mini(mana_maximo, mana + quantia)
+
+
+# Cura o próprio Jogador (feitiço Curar). Devolve quanto HP foi de facto reposto.
+func cura_se(quantia: int) -> int:
+	var real := mini(quantia, hp_maximo - hp)
+	hp += real
+	_log("%s sente a carne fechar-se: +%d de HP! (HP: %d/%d)" % [nome, real, hp, hp_maximo])
+	return real
+
+
+# Sofre dano de um feitiço inimigo. Magia elemental ignora a armadura.
+func sofre_dano_magico(dano: int, fonte_nome: String, elemento: String = "") -> void:
+	var desc := (" %s" % elemento) if elemento != "" else ""
+	hp -= dano
+	_log("%s atinge %s com magia%s — %d de dano! (HP: %d)" % [fonte_nome, nome, desc, dano, hp])
+	if hp <= 0:
+		lida_morte(fonte_nome)
+
+
+# Prende o Jogador no gelo (feitiço Congelar inimigo). Perderá 'turnos' vezes a vez.
+func congela(turnos: int) -> void:
+	congelado = maxi(congelado, turnos)
+	_log("%s é tomado pelo gelo e não consegue agir por %d turno(s)!" % [nome, turnos])
 
 
 # O jogador entoa uma frase em voz alta. O Jogador não conhece o mapa, os

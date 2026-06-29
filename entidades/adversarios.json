@@ -1,45 +1,118 @@
 [
 	{	"nome": "Goblin",
-		"sprite": "g", 
+		"sprite": "g",
 		"hp": 30,
 		"ataque" : 5,
-		"armadura": 0
+		"armadura": 0,
+		"glossario": "Pequeno saqueador das galerias: cobarde sozinho, perigoso em matilha. Rouba o que brilha e foge do que arde."
 	},
 	{	"nome": "Troll",
 		"sprite": "T",
 		"hp": 100,
 		"ataque": 20,
-		"armadura": 10
+		"armadura": 10,
+		"glossario": "Montanha de músculo e fome. A pele grossa vale-lhe por armadura e os seus golpes partem escudos — mas é lento a pensar."
 	},
 	{	"nome": "Esqueleto",
 		"sprite": "E",
 		"hp": 50,
 		"ataque": 10,
-		"armadura": 5
+		"armadura": 5,
+		"glossario": "Osso erguido por vontade alheia. Obedece sem ter língua para perguntar a quem. Outrora teve nome; já o esqueceu — ou lho tiraram."
 	},
 	{	"nome": "Fada",
 		"sprite": "f",
 		"hp": 10,
 		"ataque": 2,
-		"armadura" : 0
+		"armadura" : 0,
+		"glossario": "Centelha de luz onde luz não devia haver. Frágil e fora de lugar, sonhada para cá por algo que sonha alto demais."
 	},
 	{	"nome": "Ork",
 		"sprite": "O",
 		"hp": 75,
 		"ataque": 15,
-		"armadura": 0
+		"armadura": 0,
+		"glossario": "Bruto de guerra, todo fúria e nenhum recuo. Sem armadura que o trave, compensa-a com vigor e com o gosto de bater."
 	},
 	{	"nome": "Necromante",
 		"sprite": "N",
 		"hp": 50,
 		"ataque": 5,
-		"armadura": 0
+		"armadura": 0,
+		"mana": 30,
+		"glossario": "Pastor dos mortos ao serviço d'ELE. Ergue os tombados, fende o ar com raios e fecha as próprias feridas. Quer o teu nome antes do teu corpo.",
+		"insultos":
+			[
+				"Os teus ossos já constam do meu inventário — falta só vir buscá-los.",
+				"Não te mato, aventureiro. Apenas te transfiro para o serviço d'ELE.",
+				"Desceste a contar os meses. Eu sou quem, no fim, os cobra.",
+				"Há um nome que ergue os mortos. Hei-de tê-lo antes que sejas um deles."
+			],
+		"magias":
+			[
+				{
+					"nome": "Reviver",
+					"sprite": "*",
+					"tipo": "reviver",
+					"custo_mana": 10,
+					"alcance": 3,
+					"efeito": "ergue de novo um servo tombado, com metade da vida."
+				},
+				{
+					"nome": "Raio",
+					"sprite": "*",
+					"tipo": "dano",
+					"custo_mana": 5,
+					"alcance": 5,
+					"dano": 12,
+					"efeito": "fende o ar com um raio que nenhuma armadura detém."
+				},
+				{
+					"nome": "Curar",
+					"sprite": "*",
+					"tipo": "cura",
+					"custo_mana": 8,
+					"alcance": 1,
+					"cura": 20,
+					"efeito": "fecha as próprias feridas, restaurando 20 de vida."
+				}
+			]
 	},
 	{	"nome": "Servo Menor",
 		"sprite": "s",
 		"hp": 35,
 		"ataque": 10,
-		"armadura": 2
+		"armadura": 2,
+		"mana": 20,
+		"glossario": "O que sobra de alguém que desceu e ficou. Sopra gelo que prende e granizo que fere, e já só recorda o nome do seu Senhor.",
+		"insultos":
+			[
+				"Também eu tive um nome, lá em cima. Hoje só conheço o do meu Senhor.",
+				"Foge se quiseres — o frio que trago já te conhece de outras vidas.",
+				"Não acordes o que dorme em baixo. Deixa-me apenas adormecer-te a ti.",
+				"Cada passo teu afunda mais o sono d'ELE. Obrigado por desceres."
+			],
+		"magias":
+			[
+				{
+					"nome": "Congelar",
+					"sprite": "*",
+					"tipo": "congelar",
+					"custo_mana": 5,
+					"alcance": 3,
+					"duracao": 1,
+					"efeito": "prende o alvo no gelo, roubando-lhe um turno."
+				},
+				{
+					"nome": "Chuva de Gelo",
+					"sprite": "*",
+					"tipo": "area_dano",
+					"custo_mana": 10,
+					"alcance": 5,
+					"dano": 8,
+					"raio": 1,
+					"efeito": "despeja gelo sobre uma área, ferindo quem nela estiver."
+				}
+			]
 	}
-	
 ]

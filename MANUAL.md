@@ -15,7 +15,7 @@
 
 > *"Há poder em toda a palavra que pronuncias. No bom-dia que dás ao*
 > *vizinho, no nome que sussurras ao adormecer, na praga que cospes*
-> *quando te cortas. Os antigos sabiam-no. Nós esquecemo-nos — e foi*
+> *quando te cortas. Os antigos sabiam-no. Nós esquecemo-nos e foi*
 > *esse esquecimento que nos manteve vivos."*
 >
 > — inscrição à entrada da gruta, meio apagada pela água
@@ -23,20 +23,20 @@
 *Espalhadas por este livrete encontrarás folhas que não lhe pertencem:*
 *orações molhadas, margens rabiscadas, páginas arrancadas a outro livro*
 *muito mais velho. Recolhemo-las tal como as achámos. Lê-as ou ignora-as,*
-*como preferires — mas repara que todas começam pela mesma sílaba.*
+*como preferires mas repara que todas começam pela mesma sílaba.*
 
 ---
 
 ## I. ANTES DE COMEÇARES
 
 Saudações, tu que pegaste neste livrete. Se o seguras, é porque já
-foste **escolhido** — ainda que ninguém te tenha dito por quem, nem
+foste **escolhido** ainda que ninguém te tenha dito por quem, nem
 para quê. Não foste o primeiro a descer. Serás, talvez, o primeiro a
 voltar.
 
 Lá fora estende-se a **metrópole**: as suas torres, os seus sinos, o
 seu comércio interminável de moeda e de palavra. Os seus habitantes
-falam o dia inteiro sem nunca reparar no que dizem — e dormem
+falam o dia inteiro sem nunca reparar no que dizem e dormem
 tranquilos sobre aquilo que não querem saber.
 
 A pouca distância dos muros abre-se uma **gruta**. Há semanas que dela
@@ -48,7 +48,7 @@ coisa de pouca monta.
 Mentiram, ou não sabiam. Dá no mesmo.
 
 Este manual ensina-te a sobreviver lá em baixo. Não te promete que
-compreendas o que encontrarás — só os tolos descem à procura de
+compreendas o que encontrarás só os tolos descem à procura de
 respostas. Os sábios descem à procura da saída.
 
 > **⟢ ORAÇÃO RECOLHIDA À BOCA DA GRUTA ⟢**
@@ -69,12 +69,12 @@ contra a escuridão, e as trevas, dizem, ouvem melhor do que vêem.
 Quatro caminhos te estão abertos:
 
 ```
-  CLASSE       HP    ATAQUE   ARMADURA   PRECISÃO
-  ---------------------------------------------------
-  Bárbaro      150     20         0         80%
-  Mago         100     15         5         85%
-  Cavaleiro    125     10        10         90%
-  Ladrão       110     12         5         95%
+  CLASSE       HP    ATAQUE   ARMADURA   PRECISÃO   MANA
+  -----------------------------------------------------------
+  Bárbaro      150     20         0         80%        0
+  Mago         100     15         5         85%       40
+  Cavaleiro    125     10        10         90%       10
+  Ladrão       110     12         5         95%       15
 ```
 
 - **Bárbaro** — golpe largo, carne resistente, nenhuma paciência. Onde
@@ -91,8 +91,11 @@ Quatro caminhos te estão abertos:
 
 A tua **Força** é a base de todo o dano que infliges e o requisito que
 decide que armas as tuas mãos aguentam. A tua **Precisão** decide se
-acertas. Sobe de **Nível** matando e lendo, e os teus atributos
-crescerão segundo a tua classe.
+acertas. A tua **Mana** é o fôlego das palavras de poder: gasta-se a
+cada feitiço, regenera devagar a cada passo e enche-se por inteiro a
+cada Nível. O Mago desce com mana de sobra; o Bárbaro, com nenhuma —
+para ele, a única palavra é o golpe. Sobe de **Nível** matando e lendo,
+e os teus atributos crescerão segundo a tua classe.
 
 > **⟢ PÁGINA PERDIDA · «o registo dos que entraram» ⟢**
 >
@@ -100,7 +103,7 @@ crescerão segundo a tua classe.
 > *O do braço esqueceu o seu nome no primeiro corredor.*
 > *O das palavras lembrou-se demasiado, e isso foi o fim dele.*
 > *O da couraça ajoelhou-se diante do que jurara combater.*
-> *O das mãos rápidas não roubou nada — foi roubado.*
+> *O das mãos rápidas não roubou nada foi roubado.*
 > *Mesmo assim, todos voltam. Algo gosta de os ter por perto.*
 
 ---
@@ -112,7 +115,7 @@ desenhes hoje te servirá amanhã. A própria pedra parece reorganizar-se
 quando ninguém a observa, como se obedecesse a um sono inquieto algures
 mais abaixo.
 
-A tua tocha lança um círculo de luz à tua volta — é o teu **campo de
+A tua tocha lança um círculo de luz à tua volta é o teu **campo de
 visão**. Tudo o resto permanece em treva. Não confundas o que não vês
 com o que não está lá.
 
@@ -122,7 +125,7 @@ com o que não está lá.
 ```
 
 Antes de cada passo, o jogo verifica paredes e limites do mapa por ti.
-A pedra não cede à pressa — só à chave certa, ou à palavra certa.
+A pedra não cede à pressa só à chave certa, ou à palavra certa.
 
 > **⟢ MARGEM RABISCADA NUM MAPA QUE NÃO BATE CERTO ⟢**
 >
@@ -159,7 +162,7 @@ seu alcance de visão e atacam quando te alcançam.
 
 Repara na **Fada**. Tão fraca, tão fora de lugar nesta pedra antiga.
 Que faz uma criatura de luz tão fundo no escuro? Algumas coisas não
-descem por vontade própria — são **sonhadas** para cá, por algo que
+descem por vontade própria são **sonhadas** para cá, por algo que
 sonha alto demais.
 
 O **Esqueleto** outrora teve nome e voz. Repara que obedece. Pergunta
@@ -178,7 +181,7 @@ a ti mesmo a *quem*.
 ## V. O ARSENAL
 
 As armas espalham-se pelo chão das cavernas, à espera de uma mão. Para
-empunhar uma precisas de Força e Precisão suficientes — exceder o
+empunhar uma precisas de Força e Precisão suficientes exceder o
 requisito de força dá-te um bónus de dano, mas pena-te a pontaria.
 Troca de arma com **`T`**.
 
@@ -207,7 +210,7 @@ Troca de arma com **`T`**.
   coragem para ser manejado."
 
 O bronze é antigo. Mais antigo do que o reino, dizem os ferreiros, mais
-antigo do que a primeira metrópole erguida sobre estas grutas — e nem
+antigo do que a primeira metrópole erguida sobre estas grutas e nem
 essa foi a primeira a ser erguida aqui.
 
 > **⟢ ORAÇÃO DO FERREIRO, GRAVADA NUMA BIGORNA SOTERRADA ⟢**
@@ -256,7 +259,7 @@ Em cada masmorra podes rasgar **uma** passagem. Prime **`P`** com uma
 pedra; volta a premir **`P`** junto dele para o atravessar.
 
 Quando o cruzas, és *puxado para outra dimensão*. Não tomes a frase por
-figura de estilo. As paredes não te levam a outra sala — levam-te a
+figura de estilo. As paredes não te levam a outra sala levam-te a
 outro **lugar**, talvez a outro **tempo**. A treva por baixo da cidade
 não é só profunda. É *larga* de um modo que a geometria não permite.
 
@@ -265,7 +268,7 @@ não é só profunda. É *larga* de um modo que a geometria não permite.
 > *Aye — atravessei e a cidade lá em cima já não era a minha.*
 > *Outros muros, outra língua, o mesmo murmúrio por baixo.*
 > *Compreendi então: não há uma gruta sob uma cidade.*
-> *Há uma só gruta, e todas as cidades foram construídas sobre a mesma —*
+> *Há uma só gruta, e todas as cidades foram construídas sobre a mesma*
 > *cada uma sem saber das outras, cada uma sentada sobre o mesmo sono.*
 
 ---
@@ -282,30 +285,68 @@ dias, as que dizes sem pensar. Em baixo, onde algo escuta, dizê-las em
 ordem certa *faz* coisas.
 
 Não há aqui lista de palavras nem fórmula pronta. **Não as procures
-nestas páginas — elas não estão escritas em parte nenhuma.** Cada nome
+nestas páginas elas não estão escritas em parte nenhuma.** Cada nome
 é *conquistado*, pago em feito e em sangue, e só então uma voz sem dono
 to devolve, sílaba a sílaba, do fundo da tua própria memória. Quem
 derrama o suficiente recebe um nome. Quem lê o suficiente recebe outro.
-O primeiro — esse, dizem, já o trazes contigo desde que nasceste; só
+O primeiro esse, dizem, já o trazes contigo desde que nasceste; só
 falta repará-lo.
 
 Quando os tiveres a todos, e na ordem certa, poderás **selar um pacto**.
 
-- **`G`** — abre o **dicionário**, o glossário das palavras que já
-  lembras. Começará vazio. O que lá aparecer, ganhaste-o. Lê as
-  definições com atenção: escondem mais do que dizem.
+- **`G`** — abre o **dicionário**, as tuas próprias anotações. Procura
+  por uma palavra que lembres, por um item que tenhas tido em mãos ou
+  pelo **nome de uma criatura que já tenhas avistado** — cada encontro
+  acrescenta-lhe uma linha. Começará quase vazio. O que lá aparecer,
+  ganhaste-o. Lê as definições com atenção: escondem mais do que dizem.
 - **`F`** — **falar**. Pronuncia uma frase em voz alta. Se ainda te
   faltar um nome, a frase tropeçar-te-á na língua. Se os tiveres todos
   — e uma **Chave** no bolso — algo do outro lado responde: o véu da
-  realidade rasga-se e **um covil de boss reclama-te**. O nome que
-  *tranca* exige sempre uma chave; nada se fecha sem ela.
+  realidade rasga-se e **um covil de boss reclama-te**. É também por
+  aqui que se dizem os **feitiços** (ver abaixo): a mesma boca que sela
+  pactos é a que lança raios.
+
+### Os feitiços — palavras que ferem
+
+Nem toda a palavra serve para selar pactos. Algumas, ditas sozinhas,
+*fazem*: rasgam o ar, fecham feridas, prendem no gelo o que respira.
+São os **feitiços**, e gastam **Mana** — sem fôlego de poder, a sílaba
+esvai-se na língua e nada acontece.
+
+Aprende-os como aprendes os nomes do pacto: ganhos em feito e em
+sangue, devolvidos pela voz sem dono quando os mereces — uns a troco de
+inimigos tombados, outros a troco de pergaminhos lidos. Para lançar um,
+abre **`F`** e di-lo em voz alta; lançá-lo gasta-te o turno, como um
+golpe. O **dicionário** (**`G`**) guarda a incantação que recebeste,
+caso a língua te falhe.
+
+```
+  FEITIÇO         EFEITO                                      MANA
+  -------------------------------------------------------------------
+  Raio            relâmpago no inimigo mais perto; ignora armadura   6
+  Curar           fecha as tuas próprias feridas                     8
+  Congelar        rouba um turno ao inimigo mais próximo             6
+  Chuva de Gelo   granizo sobre tudo o que te rodeia                12
+```
+
+Repara: estes mesmos feitiços já se ouvem lá em baixo. O **Necromante**
+ergue os seus servos tombados, cospe raios e cura as próprias feridas;
+o **Servo Menor** sopra gelo que te prende e granizo que te fere.
+Aquilo que te combate fala a mesma língua que tu aprendes a falar.
+Pergunta-te de quem a língua era, primeiro — e quem a ensinou a ambos.
+
+> **⟢ MARGEM RABISCADA NUMA PÁGINA DE FEITIÇOS ⟢**
+>
+> *Aye — a primeira vez que disse a palavra do raio, e o raio veio, ri-me.*
+> *À terceira vez percebi que não era eu a chamá-lo.*
+> *A palavra já cá estava, à espera. Eu só lhe abri a boca.*
 
 Repara, entretanto, nos nomes que a própria pedra dá aos seus covis:
 *Sombria, Perdida, Esquecida, Maldita...* **Dos Mortos, Das Almas, Da
-Perdição** — e, de novo e de novo, **Do Senhor**. Que *Senhor* é este,
+Perdição** e, de novo e de novo, **Do Senhor**. Que *Senhor* é este,
 a quem pertencem a um tempo os mortos, as almas e as masmorras? Ninguém
 na cidade saberia responder. E talvez seja melhor assim. Há um sono que
-não convém interromper — um sono que dura desde antes de haver mundo
+não convém interromper um sono que dura desde antes de haver mundo
 para o sonhador habitar, desde que o *anterior* se apagou. O pacto que
 falas não invoca apenas um inimigo. **Acorda** algo.
 
@@ -314,7 +355,7 @@ falas não invoca apenas um inimigo. **Acorda** algo.
 > *Aye — começa sempre por aqui, dizem os que ainda têm boca.*
 > *Aye é a porta, é o bater à porta, é a mão erguida antes da fala.*
 > *Nenhuma voz se ergue sem ela primeiro; nenhum pacto se abre sem este chamado.*
-> *Os outros dois nomes não os escrevo. Não por segredo —*
+> *Os outros dois nomes não os escrevo. Não por segredo*
 > *mas porque uma palavra escrita é uma palavra morta,*
 > *e estes só servem ditos, ganhos, lembrados.*
 > *Hás de os receber quando os mereceres. ELE far-te-á esse favor.*
@@ -329,14 +370,14 @@ Derrotar inimigos e ler pergaminhos concede-te **XP** e faz-te subir de
 progresso é o que destranca as palavras: cada limiar que cruzas faz uma
 voz regressar com um novo nome.
 
-Quando caíres — e cairás — o jogo dir-te-á há quantos *meses* vagueaste
+Quando caíres, e cairás, o jogo dir-te-á há quantos *meses* vagueaste
 nas cavernas e quanto *conhecimento* acumulaste. Estranho modo de medir
 uma vida: não em ouro, não em inimigos, mas em **tempo perdido** e em
 **saber**. Como se alguém, algures, estivesse a contar exactamente
 essas duas coisas. Como se o teu conhecimento, no fim, fosse para
 *outro*.
 
-E há ainda ditos mais velhos do que qualquer pacto — restos de uma
+E há ainda ditos mais velhos do que qualquer pacto, restos de uma
 língua anterior à fala, em que até os *números* eram nomes e mandavam
 no mundo como nomes mandam. Não os encontrarás escritos aqui. Mas se
 algum dia uma sequência estranha te ocorrer sem saberes de onde, e a
@@ -376,6 +417,6 @@ baixa a voz a seguir. Tudo o que dizes, *algo* ouve.
 > *Não havia gruta nenhuma. Havia uma pálpebra.*
 > *E agora ela treme.*
 
-*Bons sonhos, aventureiro. Procura que ELE também os tem — e que,*
+*Bons sonhos, aventureiro. Procura que ELE também os tem e que,*
 *de todas as palavras que aprenderes lá em baixo, a primeira foi sempre*
 *a única de que precisavas para acordá-lo.*

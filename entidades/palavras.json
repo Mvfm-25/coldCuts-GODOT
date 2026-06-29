@@ -25,5 +25,51 @@
 	],
 	"pactos": [
 		{ "frase": "aye mak sicur", "efeito": "invoca_boss" }
+	],
+	"magias": [
+		{
+			"nome": "Raio",
+			"incantacao": "tzakar",
+			"tipo": "dano",
+			"custo_mana": 6,
+			"alcance": 5,
+			"dano": 14,
+			"desbloqueio": { "tipo": "inimigos_derrotados", "quantidade": 3 },
+			"glossario": "Diz-se «tzakar» e o ar racha. Um relâmpago que nenhuma armadura detém. Atinge o inimigo mais próximo ao alcance.",
+			"voz": "A voz crepita: \"Viste morrer o bastante para conhecer a fúria — 'tzakar', e o relâmpago obedece.\""
+		},
+		{
+			"nome": "Curar",
+			"incantacao": "saluth",
+			"tipo": "cura",
+			"custo_mana": 8,
+			"alcance": 0,
+			"cura": 25,
+			"desbloqueio": { "tipo": "pergaminhos_lidos", "quantidade": 3 },
+			"glossario": "«saluth» — a palavra que os monges murmuravam sobre os feridos. Fecha a tua própria carne.",
+			"voz": "A voz acalma: \"Leste o suficiente para reparar o que se rompe — 'saluth' devolve-te ao corpo.\""
+		},
+		{
+			"nome": "Congelar",
+			"incantacao": "nivora",
+			"tipo": "congelar",
+			"custo_mana": 6,
+			"alcance": 3,
+			"duracao": 1,
+			"desbloqueio": { "tipo": "inimigos_derrotados", "quantidade": 8 },
+			"glossario": "«nivora» prende no gelo o que se move. Rouba um turno ao inimigo mais próximo ao alcance.",
+			"voz": "A voz arrefece: \"Tanto sangue ensinou-te a pará-lo — 'nivora', e o que respira congela.\""
+		},
+		{
+			"nome": "Chuva de Gelo",
+			"incantacao": "hagal",
+			"tipo": "area_dano",
+			"custo_mana": 12,
+			"alcance": 3,
+			"dano": 10,
+			"desbloqueio": { "tipo": "pergaminhos_lidos", "quantidade": 8 },
+			"glossario": "«hagal» chama o granizo de um céu que já não existe. Cai sobre todos os inimigos à tua volta.",
+			"voz": "A voz troveja baixo: \"O saber pesou-te na língua como nuvem — 'hagal', e o gelo chove sobre todos.\""
+		}
 	]
 }
