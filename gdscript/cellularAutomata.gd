@@ -66,9 +66,9 @@ class Dungeon:
 		height = new_height
 
 	func generate_name() -> void:
-		var p = ["Masmorra", "Caverna", "Abismo", "Calabouço", "Covil", "Tumba"]
-		var m = ["Sombria", "Sombrio", "Perdida", "Perdido", "Esquecida", "Esquecido", "Maldita", "Maldito"]
-		var f = ["Dos Mortos", "Dos Condenados", "Das Almas", "Do Senhor", "Da Desgraça", "Da Perdição"]
+		var p = ["Masmorra", "Caverna", "Abismo", "Calabouço", "Covil", "Tumba", "Poço", "Ruínas", "Mundo"]
+		var m = ["Sombria", "Sombrio", "Perdida", "Perdido", "Esquecida", "Esquecido", "Maldita", "Maldito", "Destruído", "Abandonado", "Degradado", "Irredimível"]
+		var f = ["Dos Mortos", "Dos Condenados", "Das Almas", "Do Senhor", "Da Desgraça", "Da Perdição", "D'ELE"]
 		name = p.pick_random() + " " + m.pick_random() + " " + f.pick_random()
 
 	# Inicializa o grid com todas as células como paredes, para edição manual.
