@@ -3,6 +3,9 @@ extends Node2D
 const CA             = preload("res://gdscript/cellularAutomata.gd")
 const TerminalScene  = preload("res://scenes/terminal.tscn")
 
+# Separador escrito no terminal ao fim de cada turno, para dividir a leitura.
+const SEP_TURNO : String = "===== // ====="
+
 # Raio de luz (em tiles) à volta do jogador para o fog of war / FOV.
 const LIGHT_RADIUS : int = 6
 # Cor de um tile fora da luz (escuro total, sem memória do mapa).
@@ -67,6 +70,10 @@ var dialog_open : bool = false
 
 # True depois de o jogador morrer: congela o input do jogo até voltar ao menu.
 var game_over : bool = false
+
+# Pico de armadura alcançado nesta aventura, usado como "máximo" da barra de
+# escudo da sidebar (a armadura do jogador desgasta-se em combate e sobe ao nível).
+var armadura_maxima : int = 0
 
 
 class Item:
@@ -204,7 +211,7 @@ func _create_main_menu() -> void:
 
 func _show_name_dialog() -> void:
 	var dialog_layer = CanvasLayer.new()
-	dialog_layer.layer = 9
+	dialog_layer.layer = 11   # acima do Terminal (layer 10), p/ cobrir a sidebar
 	add_child(dialog_layer)
 
 	var bg = ColorRect.new()
@@ -284,7 +291,7 @@ func _show_name_dialog() -> void:
 
 func _show_class_dialog() -> void:
 	var dialog_layer = CanvasLayer.new()
-	dialog_layer.layer = 9
+	dialog_layer.layer = 11   # acima do Terminal (layer 10), p/ cobrir a sidebar
 	add_child(dialog_layer)
 
 	var bg = ColorRect.new()
@@ -351,6 +358,8 @@ func _show_class_dialog() -> void:
 
 func _start_game() -> void:
 	game_over = false
+	# Nova aventura: recomeça o pico de armadura da barra de escudo.
+	armadura_maxima = 0
 	# Nova aventura, novo dicionário (o Jogador é recriado): esquecer o bestiário.
 	bestiario_conhecido.clear()
 	menu_layer.hide()
@@ -887,30 +896,53 @@ func _initialize_dungeon_for_game() -> void:
 
 # --- Painel de status ---
 
-# Reúne os stats atuais do jogador e envia-os ao painel ">> status" do terminal.
-# O 'ouro' é o valor somado de todos os itens no inventário.
+# Ponto único de refresh da HUD após cada ação do jogador. O antigo painel
+# ">> status" foi removido (a sidebar do herói cobre a mesma informação), pelo
+# que isto agora apenas reencaminha para _update_sidebar(). Mantém-se o nome por
+# ser chamado em vários pontos (movimento, combate, magia, diálogos).
 func _update_status_panel() -> void:
+	_update_sidebar()
+
+
+# Alimenta a sidebar do herói (terminal.gd) com o estado atual do jogador: barras
+# de HP/escudo, sprite grande da classe, nome/classe, abates, ouro e o inventário
+# (armas empunhada + arsenal, e itens). Chamado sempre que o status é atualizado.
+func _update_sidebar() -> void:
 	if terminal == null or jogador_node == null:
 		return
+
+	# Uma aventura está a decorrer: garante que a sidebar está visível.
+	terminal.mostra_sidebar()
+
+	# A armadura cai em combate mas nunca sobe sozinha: o pico serve de "cheio".
+	armadura_maxima = maxi(armadura_maxima, jogador_node.armadura)
 
 	var ouro := 0
 	for entrada in jogador_node.inventario:
 		ouro += entrada[1].valor
 
-	var texto := "HP: %d / %d\n" % [jogador_node.hp, jogador_node.hp_maximo]
-	texto += "Força: %d    Armadura: %d\n" % [jogador_node.forca, jogador_node.armadura]
-	if jogador_node.mana_maximo > 0:
-		texto += "Mana: %d / %d\n" % [jogador_node.mana, jogador_node.mana_maximo]
-	texto += "Nível: %d    XP: %d / %d\n" % [jogador_node.lvl, jogador_node.xp, jogador_node.xp_proximo_nivel]
-	texto += "Ouro: %d\n" % ouro
-	# Dano e acurácia mostrados já incluem o efeito da arma equipada.
-	if jogador_node.arma_equipada != null:
-		texto += "[color=#8aa1c0]Arma: %s (dano %d, acc %d)[/color]" % [
-			jogador_node.arma_equipada.nome, jogador_node.dano_atual(), jogador_node.acuracia_atual()]
-	else:
-		texto += "[color=#5a7a5a]Arma: — (desarmado, dano %d)[/color]" % jogador_node.dano_atual()
+	terminal.set_sidebar_heroi(
+		_sprite_da_classe(), jogador_node.nome, jogador_node.classe, jogador_node.lvl,
+		jogador_node.hp, jogador_node.hp_maximo,
+		jogador_node.armadura, armadura_maxima,
+		jogador_node.xp, jogador_node.xp_proximo_nivel,
+		jogador_node.mana, jogador_node.mana_maximo,
+		jogador_node.inimigos_derrotados, ouro)
 
-	terminal.set_status(texto)
+	# Armas: a equipada primeiro (marcada com [E]), depois o resto do arsenal.
+	var armas_txt : Array = []
+	if jogador_node.arma_equipada != null:
+		armas_txt.append("[E] %s  (dano %d, alc %d)" % [
+			jogador_node.arma_equipada.nome, jogador_node.arma_equipada.dano,
+			jogador_node.arma_equipada.alcance])
+	for a in jogador_node.armas:
+		armas_txt.append("%s  (dano %d, alc %d)" % [a.nome, a.dano, a.alcance])
+
+	var itens_txt : Array = []
+	for entrada in jogador_node.inventario:
+		itens_txt.append("%s  (valor %d)" % [entrada[1].nome, entrada[1].valor])
+
+	terminal.set_sidebar_inventario(armas_txt, itens_txt)
 
 
 # --- Input e movimento ---
@@ -1037,8 +1069,8 @@ func _do_attack(dir : Vector2i) -> void:
 		alvo.queue_free()
 
 	# Atacar consome o turno do jogador: os adversários reagem a seguir.
+	# (_process_enemy_turns escreve o separador de fim de turno no terminal.)
 	_process_enemy_turns()
-	_log("=========================")
 
 
 func _try_move(new_x : int, new_y : int) -> void:
@@ -1103,7 +1135,6 @@ func _try_move(new_x : int, new_y : int) -> void:
 # limites e tiles ocupados); o Adversario só indica a direção que deseja.
 func _process_enemy_turns() -> void:
 	if jogador_node == null or game_over:
-		_log("=========================")
 		return
 
 	# Cópia: a lista pode mudar caso um adversário seja removido durante o turno.
@@ -1159,6 +1190,9 @@ func _process_enemy_turns() -> void:
 	# Combate pode ter mudado HP/armadura do jogador.
 	_update_status_panel()
 
+	# Fecha o turno com um separador no terminal, dividindo-o do próximo.
+	_log(SEP_TURNO)
+
 
 func _tile_livre_para_inimigo(nx : int, ny : int, mover) -> bool:
 	if nx < 0 or nx >= current_dungeon.width:
@@ -1181,6 +1215,9 @@ func _on_jogador_morreu(_adversario_nome : String) -> void:
 	game_over = true
 	awaiting_attack_dir = false
 	_log("--- FIM DE JOGO ---")
+	# Volta ao menu: esconde a sidebar do herói (a aventura acabou).
+	if terminal:
+		terminal.esconde_sidebar()
 	# Revela o mapa inteiro e volta a mostrar o menu principal.
 	for col in node_matrix:
 		for tile in col:
@@ -1685,7 +1722,7 @@ func _show_use_item_dialog() -> void:
 	dialog_open = true
 
 	var dialog_layer = CanvasLayer.new()
-	dialog_layer.layer = 9
+	dialog_layer.layer = 11   # acima do Terminal (layer 10), p/ cobrir a sidebar
 	add_child(dialog_layer)
 
 	var bg = ColorRect.new()
@@ -1769,7 +1806,7 @@ func _show_weapon_dialog() -> void:
 	dialog_open = true
 
 	var dialog_layer = CanvasLayer.new()
-	dialog_layer.layer = 9
+	dialog_layer.layer = 11   # acima do Terminal (layer 10), p/ cobrir a sidebar
 	add_child(dialog_layer)
 
 	var bg = ColorRect.new()
@@ -1886,7 +1923,7 @@ func _show_dictionary_dialog() -> void:
 	dialog_open = true
 
 	var dialog_layer = CanvasLayer.new()
-	dialog_layer.layer = 9
+	dialog_layer.layer = 11   # acima do Terminal (layer 10), p/ cobrir a sidebar
 	add_child(dialog_layer)
 
 	var bg = ColorRect.new()
@@ -1966,7 +2003,7 @@ func _show_speak_dialog() -> void:
 	dialog_open = true
 
 	var dialog_layer = CanvasLayer.new()
-	dialog_layer.layer = 9
+	dialog_layer.layer = 11   # acima do Terminal (layer 10), p/ cobrir a sidebar
 	add_child(dialog_layer)
 
 	var bg = ColorRect.new()
