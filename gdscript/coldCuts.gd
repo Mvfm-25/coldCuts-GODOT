@@ -442,6 +442,23 @@ func _find_valid_start() -> Vector2i:
 	return Vector2i(0, 0)
 
 
+# Sprite de cada classe. O Ladrão ainda não tem sprite próprio, por isso usa
+# o sprite base do Chipps (ChippsBase.png). Qualquer classe sem entrada aqui
+# recai também no sprite base (ver _sprite_da_classe).
+const SPRITE_CLASSE := {
+	"Bárbaro":   "res://assets/sprites/ChippsBarbaro.png",
+	"Mago":      "res://assets/sprites/ChippsMago.png",
+	"Cavaleiro": "res://assets/sprites/ChippsCavaleiro.png",
+	"Ladrão":    "res://assets/sprites/ChippsBase.png",
+}
+const SPRITE_BASE := "res://assets/sprites/ChippsBase.png"
+
+
+# Caminho da sprite adequada à classe escolhida pelo jogador.
+func _sprite_da_classe() -> String:
+	return SPRITE_CLASSE.get(player_class, SPRITE_BASE)
+
+
 func _spawn_player() -> void:
 	var start = _find_valid_start()
 	player_x = start.x
@@ -451,13 +468,14 @@ func _spawn_player() -> void:
 		player_sprite.queue_free()
 	player_sprite = Sprite2D.new()
 
-	var tex = load("res://assets/player/Funny_Little_Fella.png") as Texture2D
+	var sprite_path := _sprite_da_classe()
+	var tex = load(sprite_path) as Texture2D
 	if tex:
 		player_sprite.texture = tex
 		var sf = float(tile_size) / maxf(float(tex.get_width()), float(tex.get_height()))
 		player_sprite.scale = Vector2(sf, sf)
 	else:
-		push_warning("Sprite não encontrada: res://assets/player/Funny_Little_Fella.png")
+		push_warning("Sprite não encontrada: " + sprite_path)
 		var img = Image.create(8, 8, false, Image.FORMAT_RGB8)
 		img.fill(Color(0.2, 0.6, 1.0))
 		player_sprite.texture = ImageTexture.create_from_image(img)
@@ -1020,6 +1038,7 @@ func _do_attack(dir : Vector2i) -> void:
 
 	# Atacar consome o turno do jogador: os adversários reagem a seguir.
 	_process_enemy_turns()
+	_log("=========================")
 
 
 func _try_move(new_x : int, new_y : int) -> void:
@@ -1073,6 +1092,7 @@ func _try_move(new_x : int, new_y : int) -> void:
 
 	# Mover gasta o turno do jogador: agora os adversários jogam.
 	_process_enemy_turns()
+	
 
 
 # --- Turno dos adversários ---
@@ -1083,6 +1103,7 @@ func _try_move(new_x : int, new_y : int) -> void:
 # limites e tiles ocupados); o Adversario só indica a direção que deseja.
 func _process_enemy_turns() -> void:
 	if jogador_node == null or game_over:
+		_log("=========================")
 		return
 
 	# Cópia: a lista pode mudar caso um adversário seja removido durante o turno.
