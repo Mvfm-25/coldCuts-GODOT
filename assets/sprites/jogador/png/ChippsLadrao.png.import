@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cgeragu8ouby5"
-path="res://.godot/imported/ChippsMago.png-1d7ce50500969ccb4c961e768a456299.ctex"
+uid="uid://du1mnw1rb2ebq"
+path="res://.godot/imported/ChippsLadrao.png-dce6e9a3750ea293a9165b0f8074a792.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ChippsMago.png"
-dest_files=["res://.godot/imported/ChippsMago.png-1d7ce50500969ccb4c961e768a456299.ctex"]
+source_file="res://assets/sprites/jogador/png/ChippsLadrao.png"
+dest_files=["res://.godot/imported/ChippsLadrao.png-dce6e9a3750ea293a9165b0f8074a792.ctex"]
 
 [params]
 

@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://jbjdifvx8np2"
-path="res://.godot/imported/Funny_Little_Fella.png-05e4a6a5412a638fbf151cc02ed2a3cb.ctex"
+uid="uid://dpbkeuhx1i4eh"
+path="res://.godot/imported/ChippsCavaleiro-Dano.png-0236310a5b9d25ad8b69e2cb4ac032bc.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/player/Funny_Little_Fella.png"
-dest_files=["res://.godot/imported/Funny_Little_Fella.png-05e4a6a5412a638fbf151cc02ed2a3cb.ctex"]
+source_file="res://assets/sprites/jogador/png/ChippsCavaleiro-Dano.png"
+dest_files=["res://.godot/imported/ChippsCavaleiro-Dano.png-0236310a5b9d25ad8b69e2cb4ac032bc.ctex"]
 
 [params]
 

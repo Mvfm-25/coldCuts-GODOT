@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://du1mnw1rb2ebq"
-path="res://.godot/imported/ChippsLadrao.png-8acef14525badb85f03f5f96280bd515.ctex"
+uid="uid://bcvjh4osqrbj5"
+path="res://.godot/imported/ChippsBarbaro.png-870e6c08b1de13f1c20dfee0d477716f.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ChippsLadrao.png"
-dest_files=["res://.godot/imported/ChippsLadrao.png-8acef14525badb85f03f5f96280bd515.ctex"]
+source_file="res://assets/sprites/jogador/png/ChippsBarbaro.png"
+dest_files=["res://.godot/imported/ChippsBarbaro.png-870e6c08b1de13f1c20dfee0d477716f.ctex"]
 
 [params]
 

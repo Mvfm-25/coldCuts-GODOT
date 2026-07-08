@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://byp4djn5lv5ds"
-path="res://.godot/imported/ChippsCavaleiro.png-5560fc7497116b554d35f06109c3f0e8.ctex"
+uid="uid://dw2hcvkx8pusq"
+path="res://.godot/imported/ChippsBase.png-9b46044f25fb0f65d3a07b113b58bd1d.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/ChippsCavaleiro.png"
-dest_files=["res://.godot/imported/ChippsCavaleiro.png-5560fc7497116b554d35f06109c3f0e8.ctex"]
+source_file="res://assets/sprites/jogador/png/ChippsBase.png"
+dest_files=["res://.godot/imported/ChippsBase.png-9b46044f25fb0f65d3a07b113b58bd1d.ctex"]
 
 [params]
 
