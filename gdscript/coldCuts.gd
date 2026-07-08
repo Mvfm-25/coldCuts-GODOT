@@ -30,6 +30,30 @@ var player_x : int = 0
 var player_y : int = 0
 var player_sprite : Sprite2D
 
+# Estado da intermitência de dano do sprite do jogador (ver _flash_dano). O timer
+# é criado à primeira vez e depois reutilizado; '_dano_flash_restante' conta o
+# tempo que falta e '_dano_flash_mostra_dano' alterna entre a arte normal da
+# classe e a sua variante "-Dano".
+var _dano_flash_timer : Timer = null
+var _dano_flash_restante : float = 0.0
+var _dano_flash_mostra_dano : bool = false
+
+# Câmara do mundo (segue o jogador) e o seu zoom. Isto é enquadramento puro do
+# viewport, sem relação com o campo de visão/tochas: '+' aproxima (zoom > 1,
+# menos tiles à volta do jogador) e '-' afasta (zoom < 1, mais masmorra à vista).
+# Ver _prepara_camera e _ajusta_zoom.
+# Janela própria da masmorra (SubViewport encostado à esquerda): todo o mundo
+# (tiles, entidades, herói e a câmara) vive aqui dentro, recortado ao retângulo
+# do mapa. Ver _create_world_viewport e _ajusta_janela_masmorra.
+var world_container : SubViewportContainer = null
+var world_viewport : SubViewport = null
+
+var world_camera : Camera2D = null
+var zoom_atual : float = 1.0
+const ZOOM_MIN := 0.5     # mais afastado: masmorra inteira (e alguma margem)
+const ZOOM_MAX := 5.0     # mais aproximado: só os tiles vizinhos ao jogador
+const ZOOM_PASSO := 0.25  # variação por tecla
+
 var hud_layer : CanvasLayer
 var dungeon_label : Label
 var menu_layer : CanvasLayer
@@ -56,6 +80,11 @@ var armas_data : Array = []
 var palavras_data : Dictionary = {}
 var entity_labels : Array = []
 var jogador_node : Jogador = null
+
+# HP do jogador no fim do turno anterior. Comparado a cada fim de turno para
+# detetar quando levou dano e disparar a intermitência do sprite (ver
+# _verifica_dano_recebido).
+var _hp_anterior : int = 0
 
 # Quando true, a próxima tecla de direção é interpretada como direção de ataque
 # (mecânica 'a' + dir do coldCuts.py), em vez de mover.
@@ -132,10 +161,28 @@ class Arma:
 
 
 func _ready() -> void:
+	_create_world_viewport()
 	terminal = TerminalScene.instantiate()
 	add_child(terminal)
 	_create_hud()
 	_create_main_menu()
+
+
+# A masmorra é desenhada numa janela própria (SubViewport) encostada à borda
+# esquerda do ecrã, e não diretamente no mundo. Assim o zoom da câmara afeta só
+# esta janela e o seu conteúdo fica recortado ao retângulo do mapa — os painéis
+# da HUD (à direita, em CanvasLayers) nunca tapam a visão da masmorra. O tamanho
+# real é acertado a cada mapa em _ajusta_janela_masmorra.
+func _create_world_viewport() -> void:
+	world_container = SubViewportContainer.new()
+	world_container.position = Vector2.ZERO
+	world_container.stretch = true
+	add_child(world_container)
+
+	world_viewport = SubViewport.new()
+	world_viewport.transparent_bg = false
+	world_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	world_container.add_child(world_viewport)
 
 
 func _log(text: String) -> void:
@@ -424,6 +471,7 @@ func _draw_dungeon() -> void:
 
 	var vp = get_viewport().get_visible_rect().size
 	tile_size = max(6, min(int(vp.x / current_dungeon.width), int(vp.y / current_dungeon.height)))
+	_ajusta_janela_masmorra()
 
 	for _i in range(current_dungeon.width):
 		node_matrix.append([])
@@ -448,8 +496,19 @@ func _draw_dungeon() -> void:
 			var tex_h := float(tile.texture.get_height()) if tile.texture else 128.0
 			tile.scale = Vector2(float(tile_size) / tex_w, float(tile_size) / tex_h)
 			tile.modulate = Color(0.25, 0.22, 0.20) if eh_parede else Color(0.65, 0.58, 0.44)
-			add_child(tile)
+			world_viewport.add_child(tile)
 			node_matrix[ameba.x].append(tile)
+
+
+# Encosta a janela da masmorra à esquerda e ajusta-a ao retângulo exato do mapa
+# atual (largura x altura em píxeis). Com a janela deste tamanho e o zoom em 1, a
+# câmara — limitada às bordas do mapa (ver _prepara_camera) — mostra a masmorra
+# inteira encostada à esquerda, tal como antes de existir o zoom.
+func _ajusta_janela_masmorra() -> void:
+	if world_container == null:
+		return
+	world_container.position = Vector2.ZERO
+	world_container.size = Vector2(current_dungeon.width * tile_size, current_dungeon.height * tile_size)
 
 
 func _find_valid_start() -> Vector2i:
@@ -469,17 +528,41 @@ func _find_valid_start() -> Vector2i:
 # o sprite base do Chipps (ChippsBase.png). Qualquer classe sem entrada aqui
 # recai também no sprite base (ver _sprite_da_classe).
 const SPRITE_CLASSE := {
-	"Bárbaro":   "res://assets/sprites/ChippsBarbaro.png",
-	"Mago":      "res://assets/sprites/ChippsMago.png",
-	"Cavaleiro": "res://assets/sprites/ChippsCavaleiro.png",
-	"Ladrão":    "res://assets/sprites/ChippsLadrao.png",
+	"Bárbaro":   "res://assets/sprites/jogador/png/ChippsBarbaro.png",
+	"Mago":      "res://assets/sprites/jogador/png/ChippsMago.png",
+	"Cavaleiro": "res://assets/sprites/jogador/png/ChippsCavaleiro.png",
+	"Ladrão":    "res://assets/sprites/jogador/png/ChippsLadrao.png",
 }
-const SPRITE_BASE := "res://assets/sprites/ChippsBase.png"
+const SPRITE_BASE := "res://assets/sprites/jogador/png/ChippsBase.png"
+
+# Variante "-Dano" de cada classe: a arte que pisca no sprite do jogador quando
+# ele leva dano (ver _flash_dano). Mesmo esquema de SPRITE_CLASSE — classes sem
+# entrada recaem na variante base (ChippsBase-Dano). Enquanto uma classe não
+# tiver a sua arte de dano desenhada, o efeito é simplesmente ignorado (o sprite
+# fica no normal, sem crash); ver a verificação de existência em _flash_dano.
+const SPRITE_CLASSE_DANO := {
+	"Bárbaro":   "res://assets/sprites/jogador/png/ChippsBarbaro-Dano.png",
+	"Mago":      "res://assets/sprites/jogador/png/ChippsMago-Dano.png",
+	"Cavaleiro": "res://assets/sprites/jogador/png/ChippsCavaleiro-Dano.png",
+	"Ladrão":    "res://assets/sprites/jogador/png/ChippsLadrao-Dano.png",
+}
+const SPRITE_BASE_DANO := "res://assets/sprites/jogador/png/ChippsBase-Dano.png"
+
+# Intermitência de dano: quando o jogador leva dano, o sprite alterna entre a
+# arte normal da classe e a variante "-Dano" a DANO_FLASH_FPS trocas por segundo
+# durante DANO_FLASH_DURACAO segundos (ver _flash_dano).
+const DANO_FLASH_DURACAO := 2.0   # segundos que o efeito dura
+const DANO_FLASH_FPS := 5.0       # trocas de sprite por segundo
 
 
 # Caminho da sprite adequada à classe escolhida pelo jogador.
 func _sprite_da_classe() -> String:
 	return SPRITE_CLASSE.get(player_class, SPRITE_BASE)
+
+
+# Caminho da variante "-Dano" da classe atual; recai na base quando não há entrada.
+func _sprite_dano_da_classe() -> String:
+	return SPRITE_CLASSE_DANO.get(player_class, SPRITE_BASE_DANO)
 
 
 # --- Sprites das restantes entidades (itens, armas, inimigos e tiles) ---
@@ -546,22 +629,120 @@ func _spawn_player() -> void:
 		player_sprite.queue_free()
 	player_sprite = Sprite2D.new()
 
-	var sprite_path := _sprite_da_classe()
-	var tex = load(sprite_path) as Texture2D
+	_aplica_textura_player(_sprite_da_classe())
+
+	player_sprite.position = _tile_pixel_pos(player_x, player_y)
+	player_sprite.z_index = 2
+	world_viewport.add_child(player_sprite)
+
+	_prepara_camera()
+
+
+# Garante a Camera2D do mundo, prende-a às bordas da masmorra e centra-a no
+# jogador. Chamada a cada spawn porque o tile_size e as dimensões mudam a cada
+# mapa. Como o retângulo de limites iguala o viewport no zoom 1, a câmara fica
+# então travada ao centro (a vista de sempre); só ao aproximar ('+') é que ganha
+# folga para seguir o jogador, parando limpa nas bordas do mapa.
+func _prepara_camera() -> void:
+	if world_camera == null:
+		world_camera = Camera2D.new()
+		world_viewport.add_child(world_camera)
+	world_camera.make_current()
+	world_camera.limit_left = 0
+	world_camera.limit_top = 0
+	world_camera.limit_right = current_dungeon.width * tile_size
+	world_camera.limit_bottom = current_dungeon.height * tile_size
+	world_camera.zoom = Vector2(zoom_atual, zoom_atual)
+	_centra_camera_no_jogador()
+
+
+# Alinha a câmara ao jogador (os limites de _prepara_camera impedem que a vista
+# passe para lá do mapa). Chamada no spawn e a cada passo (ver _try_move).
+func _centra_camera_no_jogador() -> void:
+	if world_camera != null:
+		world_camera.position = _tile_pixel_pos(player_x, player_y)
+
+
+# Aproxima (delta > 0) ou afasta (delta < 0) a câmara, dentro de [ZOOM_MIN,
+# ZOOM_MAX]. É só zoom do viewport; não mexe no campo de visão nem gasta turno.
+func _ajusta_zoom(delta : float) -> void:
+	if world_camera == null:
+		return
+	zoom_atual = clampf(zoom_atual + delta, ZOOM_MIN, ZOOM_MAX)
+	world_camera.zoom = Vector2(zoom_atual, zoom_atual)
+
+
+# Carrega 'caminho' no sprite do jogador e reescala-o ao tile (robusto a qualquer
+# tamanho de arte). Se a textura não existir, recai num quadrado azul de aviso,
+# tal como no arranque. Usado pelo spawn e pela intermitência de dano.
+func _aplica_textura_player(caminho : String) -> void:
+	var tex : Texture2D = null
+	if ResourceLoader.exists(caminho):
+		tex = load(caminho) as Texture2D
 	if tex:
 		player_sprite.texture = tex
 		var sf = float(tile_size) / maxf(float(tex.get_width()), float(tex.get_height()))
 		player_sprite.scale = Vector2(sf, sf)
 	else:
-		push_warning("Sprite não encontrada: " + sprite_path)
+		push_warning("Sprite não encontrada: " + caminho)
 		var img = Image.create(8, 8, false, Image.FORMAT_RGB8)
 		img.fill(Color(0.2, 0.6, 1.0))
 		player_sprite.texture = ImageTexture.create_from_image(img)
 		player_sprite.scale = Vector2(float(tile_size) / 8.0, float(tile_size) / 8.0)
 
-	player_sprite.position = _tile_pixel_pos(player_x, player_y)
-	player_sprite.z_index = 2
-	add_child(player_sprite)
+
+# Faz o sprite do jogador piscar entre a arte normal da classe e a variante
+# "-Dano" a DANO_FLASH_FPS trocas por segundo durante DANO_FLASH_DURACAO segundos.
+# Chamado por _verifica_dano_recebido sempre que o HP cai. Se a classe ainda não
+# tiver a arte de dano exportada, o efeito é ignorado (mantém o sprite normal),
+# evitando o quadrado azul de aviso durante o flash.
+func _flash_dano() -> void:
+	if not is_instance_valid(player_sprite):
+		return
+	if not ResourceLoader.exists(_sprite_dano_da_classe()):
+		return
+
+	# O timer de intermitência é criado uma única vez e depois reutilizado.
+	if _dano_flash_timer == null:
+		_dano_flash_timer = Timer.new()
+		_dano_flash_timer.one_shot = false
+		_dano_flash_timer.wait_time = 1.0 / DANO_FLASH_FPS
+		_dano_flash_timer.timeout.connect(_on_dano_flash_tick)
+		add_child(_dano_flash_timer)
+
+	_dano_flash_restante = DANO_FLASH_DURACAO
+	_dano_flash_mostra_dano = false
+	_dano_flash_timer.start()
+	_on_dano_flash_tick()  # troca imediata, para o dano ter reação instantânea
+
+
+# Uma troca da intermitência: alterna o sprite e, ao esgotar a duração, para o
+# timer garantindo o regresso à arte normal da classe.
+func _on_dano_flash_tick() -> void:
+	if not is_instance_valid(player_sprite):
+		_dano_flash_timer.stop()
+		return
+
+	_dano_flash_restante -= _dano_flash_timer.wait_time
+	if _dano_flash_restante <= 0.0:
+		_dano_flash_timer.stop()
+		_aplica_textura_player(_sprite_da_classe())
+		return
+
+	_dano_flash_mostra_dano = not _dano_flash_mostra_dano
+	var caminho := _sprite_dano_da_classe() if _dano_flash_mostra_dano else _sprite_da_classe()
+	_aplica_textura_player(caminho)
+
+
+# Compara o HP atual do jogador com o do fim do turno anterior e, se caiu, dispara
+# a intermitência de dano (ver _flash_dano). Chamado ao fim de cada turno, cobre
+# tanto os golpes e magias dos inimigos como o raro dano de recuo ao bater na parede.
+func _verifica_dano_recebido() -> void:
+	if jogador_node == null:
+		return
+	if jogador_node.hp < _hp_anterior:
+		_flash_dano()
+	_hp_anterior = jogador_node.hp
 
 
 func _tile_pixel_pos(gx : int, gy : int) -> Vector2:
@@ -678,6 +859,7 @@ func _create_jogador() -> void:
 	jogador_node.progrediu.connect(_on_jogador_progrediu)
 	jogador_node.morreu.connect(_on_jogador_morreu)
 	jogador_node.cria_personagem(player_name, player_class)
+	_hp_anterior = jogador_node.hp
 
 
 # --- Carregamento de entidades ---
@@ -750,7 +932,7 @@ func _spawn_entity_label(char: String, x: int, y: int, color: Color, track: bool
 	lbl.add_theme_font_size_override("font_size", max(8, tile_size - 2))
 	lbl.modulate = color
 	lbl.z_index = 1
-	add_child(lbl)
+	world_viewport.add_child(lbl)
 	if track:
 		entity_labels.append(lbl)
 	return lbl
@@ -771,7 +953,7 @@ func _spawn_entity_visual(sprite_char: String, x: int, y: int, cor: Color, sprit
 			spr.scale = Vector2(sf, sf)
 			spr.position = _tile_pixel_pos(x, y)
 			spr.z_index = 1
-			add_child(spr)
+			world_viewport.add_child(spr)
 			if track:
 				entity_labels.append(spr)
 			return spr
@@ -1104,6 +1286,14 @@ func _input(event : InputEvent) -> void:
 			# Falar em voz alta (pode invocar uma masmorra de boss).
 			_show_speak_dialog()
 			return
+		KEY_EQUAL, KEY_PLUS, KEY_KP_ADD:
+			# Aproximar a câmara: vê menos tiles, mais perto do jogador.
+			_ajusta_zoom(ZOOM_PASSO)
+			return
+		KEY_MINUS, KEY_KP_SUBTRACT:
+			# Afastar a câmara: vê mais da masmorra.
+			_ajusta_zoom(-ZOOM_PASSO)
+			return
 
 	var dir := _dir_from_keycode(event.keycode)
 	if dir == Vector2i.ZERO:
@@ -1211,6 +1401,7 @@ func _try_move(new_x : int, new_y : int) -> void:
 	player_x = new_x
 	player_y = new_y
 	player_sprite.position = _tile_pixel_pos(player_x, player_y)
+	_centra_camera_no_jogador()
 	_update_fov()
 
 	# Mover gasta o turno do jogador: agora os adversários jogam.
@@ -1280,6 +1471,8 @@ func _process_enemy_turns() -> void:
 	_update_fov()
 	# Combate pode ter mudado HP/armadura do jogador.
 	_update_status_panel()
+	# Se o turno lhe custou HP, o sprite pisca para sinalizar o dano.
+	_verifica_dano_recebido()
 
 	# Fecha o turno com um separador no terminal, dividindo-o do próximo.
 	_log(SEP_TURNO)
