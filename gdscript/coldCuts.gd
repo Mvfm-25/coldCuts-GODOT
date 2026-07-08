@@ -458,7 +458,7 @@ const SPRITE_CLASSE := {
 	"Bárbaro":   "res://assets/sprites/ChippsBarbaro.png",
 	"Mago":      "res://assets/sprites/ChippsMago.png",
 	"Cavaleiro": "res://assets/sprites/ChippsCavaleiro.png",
-	"Ladrão":    "res://assets/sprites/ChippsBase.png",
+	"Ladrão":    "res://assets/sprites/ChippsLadrao.png",
 }
 const SPRITE_BASE := "res://assets/sprites/ChippsBase.png"
 
