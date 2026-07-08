@@ -40,9 +40,11 @@ var congelado: int = 0
 # Fora deste alcance, fica parado (não vagueia).
 var alcance_visao: int = 8
 
-# Nullable: o Label visual é gerido pelo jogo (como o Sprite2D do Jogador),
-# que só atribui esta referência depois de o criar.
-var label: Label = null
+# Nullable: o visual é gerido pelo jogo (como o Sprite2D do Jogador), que só
+# atribui esta referência depois de o criar. Pode ser um Sprite2D (se houver arte
+# para a criatura) ou o rótulo ASCII de sempre (fallback) — ver
+# coldCuts._spawn_entity_visual. Por isso fica untyped: basta ter .position/.visible.
+var label = null
 
 # Roteamento de texto: qualquer print() do adversário passa por aqui.
 # coldCuts.gd conecta este sinal ao seu _log() para exibir no terminal in-game.
@@ -95,12 +97,16 @@ func decide_direcao(alvo_x: int, alvo_y: int) -> Vector2i:
 	return Vector2i(signi(alvo_x - x), signi(alvo_y - y))
 
 
-# Aplica de facto o movimento já validado pelo jogo e reposiciona o Label.
+# Aplica de facto o movimento já validado pelo jogo e reposiciona o visual.
+# Um Sprite2D é centrado no tile (como o herói); o rótulo ASCII fica no canto.
 func move_para(novo_x: int, novo_y: int) -> void:
 	x = novo_x
 	y = novo_y
 	if is_instance_valid(label):
-		label.position = Vector2(x * tile_size, y * tile_size)
+		if label is Sprite2D:
+			label.position = Vector2(x * tile_size + tile_size * 0.5, y * tile_size + tile_size * 0.5)
+		else:
+			label.position = Vector2(x * tile_size, y * tile_size)
 
 
 # Ataca o jogador. Espelha a lógica de Jogador.ataca: a precisão decide o

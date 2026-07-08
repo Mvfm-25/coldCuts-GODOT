@@ -84,7 +84,9 @@ class Item:
 	var glossario : String
 	var x : int
 	var y : int
-	var label : Label
+	# Visual no mapa: um Sprite2D (se houver arte para o item) ou o rótulo ASCII
+	# de sempre (fallback). Ver _spawn_entity_visual.
+	var label = null
 
 	func _init(_nome: String, _sprite: String, _valor: int, _usavel: bool, _glossario: String, _x: int, _y: int) -> void:
 		nome = _nome
@@ -111,7 +113,8 @@ class Arma:
 	var glossario : String
 	var x : int
 	var y : int
-	var label : Label
+	# Visual no mapa: Sprite2D (se houver arte para a arma) ou rótulo ASCII (fallback).
+	var label = null
 
 	func _init(_nome: String, _sprite: String, _tipo: String, _dano: int, _alcance: int,
 			_forca: int, _precisao: int, _valor: int, _glossario: String, _x: int, _y: int) -> void:
@@ -432,8 +435,19 @@ func _draw_dungeon() -> void:
 				ameba.x * tile_size + tile_size * 0.5,
 				ameba.y * tile_size + tile_size * 0.5
 			)
-			tile.scale = Vector2(float(tile_size) / 128.0, float(tile_size) / 128.0)
-			tile.modulate = Color(0.25, 0.22, 0.20) if ameba.state == "1" else Color(0.65, 0.58, 0.44)
+			# Carrega o sprite de chão/parede (se existir); senão mantém a textura
+			# padrão da cena e apenas a tinge pela cor de sempre. Ver SPRITE_CHAO/PAREDE.
+			var eh_parede : bool = ameba.state == "1"
+			var tile_sprite : String = SPRITE_PAREDE if eh_parede else SPRITE_CHAO
+			if tile_sprite != "" and ResourceLoader.exists(tile_sprite):
+				var tex := load(tile_sprite) as Texture2D
+				if tex:
+					tile.texture = tex
+			# Escala a partir do tamanho real da textura (robusto a qualquer sprite).
+			var tex_w := float(tile.texture.get_width()) if tile.texture else 128.0
+			var tex_h := float(tile.texture.get_height()) if tile.texture else 128.0
+			tile.scale = Vector2(float(tile_size) / tex_w, float(tile_size) / tex_h)
+			tile.modulate = Color(0.25, 0.22, 0.20) if eh_parede else Color(0.65, 0.58, 0.44)
 			add_child(tile)
 			node_matrix[ameba.x].append(tile)
 
@@ -466,6 +480,61 @@ const SPRITE_BASE := "res://assets/sprites/ChippsBase.png"
 # Caminho da sprite adequada à classe escolhida pelo jogador.
 func _sprite_da_classe() -> String:
 	return SPRITE_CLASSE.get(player_class, SPRITE_BASE)
+
+
+# --- Sprites das restantes entidades (itens, armas, inimigos e tiles) ---
+# Mesmo esquema das classes do jogador: um mapa "chave -> caminho" e um resolver.
+# Enquanto a arte não está desenhada, tudo aponta para um sprite genérico; troca
+# cada entrada (ou o próprio ficheiro genérico) quando tiveres o sprite definitivo.
+# Se o caminho não existir, a entidade recai no seu rótulo ASCII / cor de sempre
+# (ver _spawn_entity_visual e _draw_dungeon), para o jogo continuar legível agora.
+const SPRITE_GENERICO := "res://assets/spritegenerico.png"
+
+# Sprite de cada item, indexado pelo seu caractere (ver entidades/items.json).
+const SPRITE_ITEM := {
+	"V": SPRITE_GENERICO,  # Poção de Vida
+	"M": SPRITE_GENERICO,  # Moeda de Ouro
+	"C": SPRITE_GENERICO,  # Chave
+	"P": SPRITE_GENERICO,  # Pergaminho
+	"R": SPRITE_GENERICO,  # Ruby
+}
+
+# Sprite de cada arma, indexada pelo seu tipo (ver entidades/armas.json).
+const SPRITE_ARMA := {
+	"espada":  SPRITE_GENERICO,
+	"adaga":   SPRITE_GENERICO,
+	"lanca":   SPRITE_GENERICO,
+	"arco":    SPRITE_GENERICO,
+	"martelo": SPRITE_GENERICO,
+	"machado": SPRITE_GENERICO,
+}
+
+# Sprite de cada adversário, indexado pelo seu nome (ver entidades/adversarios.json).
+const SPRITE_ADVERSARIO := {
+	"Goblin":      SPRITE_GENERICO,
+	"Troll":       SPRITE_GENERICO,
+	"Esqueleto":   SPRITE_GENERICO,
+	"Fada":        SPRITE_GENERICO,
+	"Ork":         SPRITE_GENERICO,
+	"Necromante":  SPRITE_GENERICO,
+	"Servo Menor": SPRITE_GENERICO,
+}
+
+# Sprites dos tiles da masmorra (ver _draw_dungeon).
+const SPRITE_CHAO   := SPRITE_GENERICO  # tile de chão (state "0")
+const SPRITE_PAREDE := SPRITE_GENERICO  # tile de parede (state "1")
+
+
+func _sprite_do_item(sprite_char: String) -> String:
+	return SPRITE_ITEM.get(sprite_char, SPRITE_GENERICO)
+
+
+func _sprite_da_arma(tipo: String) -> String:
+	return SPRITE_ARMA.get(tipo, SPRITE_GENERICO)
+
+
+func _sprite_do_adversario(nome: String) -> String:
+	return SPRITE_ADVERSARIO.get(nome, SPRITE_GENERICO)
 
 
 func _spawn_player() -> void:
@@ -687,6 +756,28 @@ func _spawn_entity_label(char: String, x: int, y: int, color: Color, track: bool
 	return lbl
 
 
+# Cria o visual de uma entidade (item, arma ou inimigo) no tile (x, y). Se existir
+# um sprite no caminho dado, carrega-o num Sprite2D e usa-o (mesma lógica de
+# _spawn_player para o herói); caso contrário, recai no rótulo ASCII de sempre
+# (sprite_char + cor). Assim, enquanto a arte não existe, o mapa continua legível;
+# basta pôr o PNG no caminho mapeado para a entidade passar a mostrar o sprite.
+func _spawn_entity_visual(sprite_char: String, x: int, y: int, cor: Color, sprite_path: String, track: bool = true) -> CanvasItem:
+	if sprite_path != "" and ResourceLoader.exists(sprite_path):
+		var tex := load(sprite_path) as Texture2D
+		if tex:
+			var spr := Sprite2D.new()
+			spr.texture = tex
+			var sf := float(tile_size) / maxf(float(tex.get_width()), float(tex.get_height()))
+			spr.scale = Vector2(sf, sf)
+			spr.position = _tile_pixel_pos(x, y)
+			spr.z_index = 1
+			add_child(spr)
+			if track:
+				entity_labels.append(spr)
+			return spr
+	return _spawn_entity_label(sprite_char, x, y, cor, track)
+
+
 # --- População de inimigos ---
 
 func _populate_enemies(count: int) -> void:
@@ -721,7 +812,7 @@ func _populate_enemies(count: int) -> void:
 		add_child(enemy)
 		enemy.logged.connect(_log)
 		enemy.cria_adversario(data, x, y)
-		enemy.label = _spawn_entity_label(enemy.sprite_char, x, y, Color(1.0, 0.3, 0.3))
+		enemy.label = _spawn_entity_visual(enemy.sprite_char, x, y, Color(1.0, 0.3, 0.3), _sprite_do_adversario(enemy.nome))
 		enemies.append(enemy)
 		placed += 1
 
@@ -752,7 +843,7 @@ func _guarantee_key() -> void:
 
 		var key := Item.new("Chave", "C", 25, true,
 							"Poucos conhecem deste item, outros iriam preferir não o conhecer...", x, y)
-		key.label = _spawn_entity_label("C", x, y, Color(1.0, 0.9, 0.1))
+		key.label = _spawn_entity_visual("C", x, y, Color(1.0, 0.9, 0.1), _sprite_do_item("C"))
 		items.append(key)
 		return
 
@@ -792,7 +883,7 @@ func _populate_items(count: int) -> void:
 		var data : Dictionary = items_data[randi_range(0, items_data.size() - 1)]
 		var new_item := Item.new(data["nome"], data["sprite"], int(data["valor"]),
 								 bool(data["usavel"]), data["glossario"], x, y)
-		new_item.label = _spawn_entity_label(new_item.sprite_char, x, y, Color(1.0, 0.85, 0.2))
+		new_item.label = _spawn_entity_visual(new_item.sprite_char, x, y, Color(1.0, 0.85, 0.2), _sprite_do_item(new_item.sprite_char))
 		items.append(new_item)
 		placed += 1
 
@@ -839,7 +930,7 @@ func _populate_armas(count: int) -> void:
 
 		var data : Dictionary = armas_data[randi_range(0, armas_data.size() - 1)]
 		var nova := _constroi_arma(data, x, y)
-		nova.label = _spawn_entity_label(nova.sprite_char, x, y, Color(0.4, 0.8, 1.0))
+		nova.label = _spawn_entity_visual(nova.sprite_char, x, y, Color(0.4, 0.8, 1.0), _sprite_da_arma(nova.tipo))
 		armas_mapa.append(nova)
 		placed += 1
 
@@ -1576,7 +1667,7 @@ func _reanima_servo(necro, alcance: int) -> void:
 	enemy.logged.connect(_log)
 	enemy.cria_adversario(data, rx, ry)
 	enemy.hp = maxi(1, enemy.hp_maximo / 2)   # ergue-se com metade da vida
-	enemy.label = _spawn_entity_label(enemy.sprite_char, rx, ry, Color(0.7, 0.3, 0.9))
+	enemy.label = _spawn_entity_visual(enemy.sprite_char, rx, ry, Color(0.7, 0.3, 0.9), _sprite_do_adversario(enemy.nome))
 	enemies.append(enemy)
 	_update_fov()
 	_log("%s ergue %s dentre os mortos!" % [necro.nome, enemy.nome])
