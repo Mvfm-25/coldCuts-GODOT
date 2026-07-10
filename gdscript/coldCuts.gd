@@ -575,11 +575,11 @@ const SPRITE_GENERICO := "res://assets/spritegenerico.png"
 
 # Sprite de cada item, indexado pelo seu caractere (ver entidades/items.json).
 const SPRITE_ITEM := {
-	"V": SPRITE_GENERICO,  # Poção de Vida
-	"M": SPRITE_GENERICO,  # Moeda de Ouro
-	"C": SPRITE_GENERICO,  # Chave
-	"P": SPRITE_GENERICO,  # Pergaminho
-	"R": SPRITE_GENERICO,  # Ruby
+	"V": "res://assets/sprites/itens/png/PocaoDeVida.png",
+	"M": "res://assets/sprites/itens/png/MoedaDeOuro.png",  # Moeda de Ouro
+	"C": "res://assets/sprites/itens/png/ChaveDeOuro.png",  
+	"P": "res://assets/sprites/itens/png/Pergaminho.png",  
+	"R": "res://assets/sprites/itens/png/Ruby.png",  
 }
 
 # Sprite de cada arma, indexada pelo seu tipo (ver entidades/armas.json).
@@ -609,15 +609,15 @@ const SPRITE_PAREDE := SPRITE_GENERICO  # tile de parede (state "1")
 
 
 func _sprite_do_item(sprite_char: String) -> String:
-	return SPRITE_ITEM.get(sprite_char, SPRITE_GENERICO)
+	return SPRITE_ITEM.get(sprite_char, SPRITE_ITEM)
 
 
 func _sprite_da_arma(tipo: String) -> String:
-	return SPRITE_ARMA.get(tipo, SPRITE_GENERICO)
+	return SPRITE_ARMA.get(tipo, SPRITE_ARMA)
 
 
 func _sprite_do_adversario(nome: String) -> String:
-	return SPRITE_ADVERSARIO.get(nome, SPRITE_GENERICO)
+	return SPRITE_ADVERSARIO.get(nome, SPRITE_ADVERSARIO)
 
 
 func _spawn_player() -> void:
