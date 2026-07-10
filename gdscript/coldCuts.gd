@@ -100,6 +100,16 @@ var dialog_open : bool = false
 # True depois de o jogador morrer: congela o input do jogo até voltar ao menu.
 var game_over : bool = false
 
+# Música de fundo: um único AudioStreamPlayer reutilizado, criado à primeira faixa.
+# '_musica_atual' guarda o caminho a tocar para não reiniciar a mesma faixa (ver
+# _toca_musica). Cada estado do jogo pede a sua faixa: menu, masmorra comum, boss e morte.
+var _music_player : AudioStreamPlayer = null
+var _musica_atual : String = ""
+const MUSICA_MENU  := "res://assets/musica/Marathon.ogg"            # menu inicial
+const MUSICA_JOGO  := "res://assets/musica/4MinutesBeforeDeath.ogg" # masmorras comuns
+const MUSICA_BOSS  := "res://assets/musica/MaximumCarnage.ogg"      # masmorras de boss
+const MUSICA_MORTE := "res://assets/musica/Diablo.ogg"             # fim de jogo / morte
+
 # Pico de armadura alcançado nesta aventura, usado como "máximo" da barra de
 # escudo da sidebar (a armadura do jogador desgasta-se em combate e sobe ao nível).
 var armadura_maxima : int = 0
@@ -257,6 +267,9 @@ func _create_main_menu() -> void:
 	btn_quit.custom_minimum_size = Vector2(0, 36)
 	btn_quit.pressed.connect(func(): get_tree().quit())
 	vbox.add_child(btn_quit)
+
+	# Menu inicial: entra a tocar a faixa do menu.
+	_toca_musica(MUSICA_MENU)
 
 
 func _show_name_dialog() -> void:
@@ -423,6 +436,8 @@ func _start_game() -> void:
 	_equipa_arma_inicial()
 	dungeon_label.text = current_dungeon.name
 	dungeon_label.show()
+	# Masmorra comum: toca a faixa do gameplay normal.
+	_toca_musica(MUSICA_JOGO)
 	_log("Aventura iniciada! Personagem: %s (%s)" % [player_name, player_class])
 	_inicia_palavras_magicas()
 
@@ -1533,6 +1548,8 @@ func _tile_livre_para_inimigo(nx : int, ny : int, mover) -> bool:
 func _on_jogador_morreu(_adversario_nome : String) -> void:
 	game_over = true
 	awaiting_attack_dir = false
+	# Fim de jogo: toca a faixa de morte.
+	_toca_musica(MUSICA_MORTE)
 	_log("--- FIM DE JOGO ---")
 	# Volta ao menu: esconde a sidebar do herói (a aventura acabou).
 	if terminal:
@@ -1611,6 +1628,9 @@ func _enter_new_dungeon() -> void:
 	_spawn_player()
 	_initialize_dungeon_for_game()
 	dungeon_label.text = current_dungeon.name
+	# Nova masmorra comum (via portal): garante a faixa do gameplay normal, caso
+	# viéssemos de uma arena de boss.
+	_toca_musica(MUSICA_JOGO)
 
 
 # --- Palavras mágicas e pactos (ver entidades/palavras.json) ---
@@ -1951,6 +1971,8 @@ func _on_pediu_boss() -> void:
 	_spawn_player()
 	_initialize_dungeon_for_game()
 	dungeon_label.text = current_dungeon.name
+	# Arena de boss: troca para a faixa de boss.
+	_toca_musica(MUSICA_BOSS)
 	_log("Você desperta numa arena de boss: %s" % current_dungeon.name)
 
 
@@ -1978,6 +2000,32 @@ func _pick_random_boss_dungeon() -> String:
 		return ""
 	boss_files.shuffle()
 	return boss_files[0]
+
+
+# --- Música de fundo ---
+
+# Toca uma faixa em loop, criando o AudioStreamPlayer à primeira vez. Ignora o
+# pedido se a mesma faixa já estiver a tocar (para não a reiniciar em cada passo)
+# e se o ficheiro ainda não estiver importado (ResourceLoader.exists falso), para
+# não haver crash antes de o Godot importar os .ogg. Cada estado do jogo chama
+# esta função com a sua constante MUSICA_*.
+func _toca_musica(caminho : String) -> void:
+	if caminho == _musica_atual and is_instance_valid(_music_player) and _music_player.playing:
+		return
+	if not ResourceLoader.exists(caminho):
+		return
+	var stream := load(caminho) as AudioStream
+	if stream == null:
+		return
+	# Garante loop contínuo (o import do .ogg/.mp3 pode vir sem loop ligado).
+	if stream is AudioStreamOggVorbis or stream is AudioStreamMP3:
+		stream.loop = true
+	if _music_player == null:
+		_music_player = AudioStreamPlayer.new()
+		add_child(_music_player)
+	_music_player.stream = stream
+	_music_player.play()
+	_musica_atual = caminho
 
 
 # --- Exterminatus (debug: invocado pela fala secreta do Jogador) ---
