@@ -46,6 +46,19 @@ var alcance_visao: int = 8
 # coldCuts._spawn_entity_visual. Por isso fica untyped: basta ter .position/.visible.
 var label = null
 
+# Caminhos da arte normal e da variante "-Dano" desta criatura. O jogo atribui-os
+# ao criar o visual (só quando há sprite real; no fallback ASCII ficam vazios e a
+# criatura não pisca). Espelham o par SPRITE_CLASSE / SPRITE_CLASSE_DANO do jogador.
+var sprite_normal_path: String = ""
+var sprite_dano_path: String = ""
+
+# Intermitência de dano: mesmos valores do flash do jogador (ver coldCuts._flash_dano).
+const DANO_FLASH_DURACAO := 2.0   # segundos que o efeito dura
+const DANO_FLASH_FPS := 5.0       # trocas de sprite por segundo
+var _dano_flash_timer: Timer = null
+var _dano_flash_restante: float = 0.0
+var _dano_flash_mostra_dano: bool = false
+
 # Roteamento de texto: qualquer print() do adversário passa por aqui.
 # coldCuts.gd conecta este sinal ao seu _log() para exibir no terminal in-game.
 signal logged(text: String)
@@ -207,3 +220,63 @@ func decide_magia(distancia_ao_jogador: int) -> Dictionary:
 			return m
 
 	return {}
+
+
+# --- Intermitência de dano (espelha o flash do jogador em coldCuts) ---
+
+# Troca a textura do próprio sprite, reescalando-a para caber no tile — a mesma
+# lógica de coldCuts._aplica_textura_player. Só age se o visual for um Sprite2D
+# (o rótulo ASCII de fallback não pisca).
+func _aplica_textura(caminho: String) -> void:
+	if not is_instance_valid(label) or not (label is Sprite2D):
+		return
+	if not ResourceLoader.exists(caminho):
+		return
+	var tex := load(caminho) as Texture2D
+	if tex == null:
+		return
+	label.texture = tex
+	var sf := float(tile_size) / maxf(float(tex.get_width()), float(tex.get_height()))
+	label.scale = Vector2(sf, sf)
+
+
+# Faz o sprite piscar entre a arte normal e a variante "-Dano" a DANO_FLASH_FPS
+# trocas por segundo durante DANO_FLASH_DURACAO segundos, tal como o jogador.
+# Chamado pelo jogo sempre que a criatura leva dano e sobrevive. Se não houver arte
+# de dano (ou o visual for ASCII), o efeito é ignorado sem crash.
+func pisca_dano() -> void:
+	if not is_instance_valid(label) or not (label is Sprite2D):
+		return
+	if sprite_dano_path == "" or not ResourceLoader.exists(sprite_dano_path):
+		return
+
+	# O timer de intermitência é criado uma única vez e depois reutilizado.
+	if _dano_flash_timer == null:
+		_dano_flash_timer = Timer.new()
+		_dano_flash_timer.one_shot = false
+		_dano_flash_timer.wait_time = 1.0 / DANO_FLASH_FPS
+		_dano_flash_timer.timeout.connect(_on_dano_flash_tick)
+		add_child(_dano_flash_timer)
+
+	_dano_flash_restante = DANO_FLASH_DURACAO
+	_dano_flash_mostra_dano = false
+	_dano_flash_timer.start()
+	_on_dano_flash_tick()  # troca imediata, para o dano ter reação instantânea
+
+
+# Uma troca da intermitência: alterna o sprite e, ao esgotar a duração, para o
+# timer garantindo o regresso à arte normal.
+func _on_dano_flash_tick() -> void:
+	if not is_instance_valid(label) or not (label is Sprite2D):
+		if _dano_flash_timer != null:
+			_dano_flash_timer.stop()
+		return
+
+	_dano_flash_restante -= _dano_flash_timer.wait_time
+	if _dano_flash_restante <= 0.0:
+		_dano_flash_timer.stop()
+		_aplica_textura(sprite_normal_path)
+		return
+
+	_dano_flash_mostra_dano = not _dano_flash_mostra_dano
+	_aplica_textura(sprite_dano_path if _dano_flash_mostra_dano else sprite_normal_path)

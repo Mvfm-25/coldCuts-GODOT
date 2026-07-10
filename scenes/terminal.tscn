@@ -1,7 +1,7 @@
-[gd_scene load_steps=2 format=3]
+[gd_scene format=3 uid="uid://ch2r5jrcvrkl5"]
 
-[ext_resource type="Script" path="res://gdscript/terminal.gd" id="1"]
+[ext_resource type="Script" uid="uid://bx0ktndxi1vgq" path="res://gdscript/terminal.gd" id="1"]
 
-[node name="Terminal" type="CanvasLayer"]
+[node name="Terminal" type="CanvasLayer" unique_id=1905947814]
 layer = 10
 script = ExtResource("1")

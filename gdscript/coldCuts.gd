@@ -496,6 +496,8 @@ func _draw_dungeon() -> void:
 			var tex_h := float(tile.texture.get_height()) if tile.texture else 128.0
 			tile.scale = Vector2(float(tile_size) / tex_w, float(tile_size) / tex_h)
 			tile.modulate = Color(0.25, 0.22, 0.20) if eh_parede else Color(0.65, 0.58, 0.44)
+			# Camada mais baixa: o chão/parede fica sempre por baixo de tudo o resto.
+			tile.z_index = TILE_Z_INDEX
 			world_viewport.add_child(tile)
 			node_matrix[ameba.x].append(tile)
 
@@ -584,28 +586,46 @@ const SPRITE_ITEM := {
 
 # Sprite de cada arma, indexada pelo seu tipo (ver entidades/armas.json).
 const SPRITE_ARMA := {
-	"espada":  SPRITE_GENERICO,
-	"adaga":   SPRITE_GENERICO,
-	"lanca":   SPRITE_GENERICO,
-	"arco":    SPRITE_GENERICO,
-	"martelo": SPRITE_GENERICO,
-	"machado": SPRITE_GENERICO,
+	"espada":  "res://assets/sprites/armas/png/Espada.png",
+	"adaga":   "res://assets/sprites/armas/png/Adaga.png",
+	"lanca":   "res://assets/sprites/armas/png/Lanca.png",
+	"arco":    "res://assets/sprites/armas/png/Arco.png",
+	"martelo": "res://assets/sprites/armas/png/Martelo.png",
+	"machado": "res://assets/sprites/armas/png/Machado.png",
 }
 
 # Sprite de cada adversário, indexado pelo seu nome (ver entidades/adversarios.json).
 const SPRITE_ADVERSARIO := {
-	"Goblin":      SPRITE_GENERICO,
-	"Troll":       SPRITE_GENERICO,
-	"Esqueleto":   SPRITE_GENERICO,
-	"Fada":        SPRITE_GENERICO,
-	"Ork":         SPRITE_GENERICO,
-	"Necromante":  SPRITE_GENERICO,
-	"Servo Menor": SPRITE_GENERICO,
+	"Goblin":      "res://assets/sprites/adversarios/png/Goblin.png",
+	"Troll":       "res://assets/sprites/adversarios/png/Troll.png",
+	"Esqueleto":   "res://assets/sprites/adversarios/png/Esqueleto.png",
+	"Fada":        "res://assets/sprites/adversarios/png/Fada.png",
+	"Ork":         "res://assets/sprites/adversarios/png/Ork.png",
+	"Necromante":  "res://assets/sprites/adversarios/png/Necromante.png",
+	"Servo Menor": "res://assets/sprites/adversarios/png/ServoMenor.png",
 }
 
-# Sprites dos tiles da masmorra (ver _draw_dungeon).
-const SPRITE_CHAO   := SPRITE_GENERICO  # tile de chão (state "0")
-const SPRITE_PAREDE := SPRITE_GENERICO  # tile de parede (state "1")
+# Variante "-Dano" de cada adversário: a arte que pisca quando a criatura leva
+# dano (espelha SPRITE_CLASSE_DANO do jogador). Sem entrada / ficheiro, a criatura
+# simplesmente não pisca (fica no sprite normal) — ver Adversario.pisca_dano.
+const SPRITE_ADVERSARIO_DANO := {
+	"Goblin":      "res://assets/sprites/adversarios/png/Goblin-Dano.png",
+	"Troll":       "res://assets/sprites/adversarios/png/Troll-Dano.png",
+	"Esqueleto":   "res://assets/sprites/adversarios/png/Esqueleto-Dano.png",
+	"Fada":        "res://assets/sprites/adversarios/png/Fada-Dano.png",
+	"Ork":         "res://assets/sprites/adversarios/png/Ork-Dano.png",
+	"Necromante":  "res://assets/sprites/adversarios/png/Necromante-Dano.png",
+	"Servo Menor": "res://assets/sprites/adversarios/png/ServoMenor-Dano.png",
+}
+
+# Sprites dos tiles da masmorra (ver _draw_dungeon). Ficam sempre na camada mais
+# baixa (z_index TILE_Z_INDEX), por baixo de itens, armas, inimigos e jogador.
+const SPRITE_CHAO   := "res://assets/sprites/solo/png/chao.png"    # tile de chão (state "0")
+const SPRITE_PAREDE := "res://assets/sprites/solo/png/parede.png"  # tile de parede (state "1")
+
+# z_index do chão/parede: abaixo de todas as outras entidades (itens/armas/inimigos
+# a z=1, jogador a z=2). Negativo para garantir que nada os tapa.
+const TILE_Z_INDEX := -1
 
 
 func _sprite_do_item(sprite_char: String) -> String:
@@ -618,6 +638,11 @@ func _sprite_da_arma(tipo: String) -> String:
 
 func _sprite_do_adversario(nome: String) -> String:
 	return SPRITE_ADVERSARIO.get(nome, SPRITE_ADVERSARIO)
+
+
+# Caminho da variante "-Dano" do adversário; "" quando não há arte de dano.
+func _sprite_dano_do_adversario(nome: String) -> String:
+	return SPRITE_ADVERSARIO_DANO.get(nome, "")
 
 
 func _spawn_player() -> void:
@@ -843,6 +868,9 @@ func _update_fov() -> void:
 	for it in items:
 		if is_instance_valid(it.label):
 			it.label.visible = visible.has(Vector2i(it.x, it.y))
+		for a in armas_mapa:
+			if is_instance_valid(a.label):
+				a.label.visible = visible.has(Vector2i(a.x, a.y))
 	if is_instance_valid(portal_label):
 		portal_label.visible = visible.has(portal_pos)
 
@@ -995,6 +1023,9 @@ func _populate_enemies(count: int) -> void:
 		enemy.logged.connect(_log)
 		enemy.cria_adversario(data, x, y)
 		enemy.label = _spawn_entity_visual(enemy.sprite_char, x, y, Color(1.0, 0.3, 0.3), _sprite_do_adversario(enemy.nome))
+		# Arte para a intermitência de dano (só pisca se o visual for Sprite2D com arte "-Dano").
+		enemy.sprite_normal_path = _sprite_do_adversario(enemy.nome)
+		enemy.sprite_dano_path = _sprite_dano_do_adversario(enemy.nome)
 		enemies.append(enemy)
 		placed += 1
 
@@ -1340,6 +1371,7 @@ func _do_attack(dir : Vector2i) -> void:
 				bateu_parede = true
 			break
 
+	var hp_antes : int = alvo.hp if alvo != null else 0
 	var derrotou : bool = jogador_node.ataca(alvo, bateu_parede)
 	if derrotou and alvo != null:
 		_regista_corpo(alvo)
@@ -1348,6 +1380,9 @@ func _do_attack(dir : Vector2i) -> void:
 			alvo.label.queue_free()
 		enemies.erase(alvo)
 		alvo.queue_free()
+	elif alvo != null and alvo.hp < hp_antes:
+		# Sobreviveu ao golpe e perdeu HP: pisca a arte de dano, como o jogador.
+		alvo.pisca_dano()
 
 	# Atacar consome o turno do jogador: os adversários reagem a seguir.
 	# (_process_enemy_turns escreve o separador de fim de turno no terminal.)
@@ -1806,6 +1841,9 @@ func _aplica_dano_magico_inimigo(alvo, dano: int) -> void:
 			alvo.label.queue_free()
 		enemies.erase(alvo)
 		alvo.queue_free()
+	else:
+		# Sobreviveu à magia: pisca a arte de dano, como o jogador.
+		alvo.pisca_dano()
 
 
 # Resolve uma magia lançada por um adversário (escolhida em Adversario.decide_magia).
@@ -1861,6 +1899,8 @@ func _reanima_servo(necro, alcance: int) -> void:
 	enemy.cria_adversario(data, rx, ry)
 	enemy.hp = maxi(1, enemy.hp_maximo / 2)   # ergue-se com metade da vida
 	enemy.label = _spawn_entity_visual(enemy.sprite_char, rx, ry, Color(0.7, 0.3, 0.9), _sprite_do_adversario(enemy.nome))
+	enemy.sprite_normal_path = _sprite_do_adversario(enemy.nome)
+	enemy.sprite_dano_path = _sprite_dano_do_adversario(enemy.nome)
 	enemies.append(enemy)
 	_update_fov()
 	_log("%s ergue %s dentre os mortos!" % [necro.nome, enemy.nome])
@@ -2069,6 +2109,26 @@ func _show_use_item_dialog() -> void:
 	vbox.add_child(btn_close)
 
 
+# Cria um TextureRect com o sprite da arma (arte pixel, escala a 'lado' px sem
+# distorcer). Devolve null se não houver sprite mapeado para o tipo — nesse caso a
+# tela de troca mostra só o texto, como antes.
+func _arma_sprite_rect(tipo: String, lado: float) -> TextureRect:
+	var caminho := _sprite_da_arma(tipo)
+	if caminho == "" or not ResourceLoader.exists(caminho):
+		return null
+	var tex := load(caminho) as Texture2D
+	if tex == null:
+		return null
+	var rect := TextureRect.new()
+	rect.texture = tex
+	rect.custom_minimum_size = Vector2(lado, lado)
+	rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	rect.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return rect
+
+
 # Resumo dos atributos de uma arma, partilhado pelos dois lados da tela de troca.
 func _arma_stats_texto(arma) -> String:
 	return "%s  [%s]\nDano: %d    Alcance: %d\nForça req.: %d    Precisão req.: %d\nValor: %d" % [
@@ -2138,6 +2198,12 @@ func _show_weapon_dialog() -> void:
 	esq_titulo.add_theme_font_size_override("font_size", 14)
 	esq.add_child(esq_titulo)
 
+	if jogador_node.arma_equipada != null:
+		var esq_icone := _arma_sprite_rect(jogador_node.arma_equipada.tipo, 72.0)
+		if esq_icone != null:
+			esq_icone.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+			esq.add_child(esq_icone)
+
 	var equipada = Label.new()
 	equipada.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	if jogador_node.arma_equipada != null:
@@ -2179,12 +2245,31 @@ func _show_weapon_dialog() -> void:
 			var apto : bool = jogador_node.cumpre_requisitos(arma)
 			var marca : String = "" if apto else "   ✗ requisitos"
 			var btn = Button.new()
-			btn.custom_minimum_size = Vector2(0, 54)
+			btn.custom_minimum_size = Vector2(0, 108)
 			btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			btn.disabled = not apto
-			btn.text = "%s (dano %d, alc %d)\nForça req. %d / Precisão req. %d%s" % [
+
+			# Conteúdo do botão: sprite da arma por cima da descrição. O VBox e os
+			# seus filhos ignoram o rato para o clique chegar sempre ao botão.
+			var conteudo := VBoxContainer.new()
+			conteudo.set_anchors_preset(Control.PRESET_FULL_RECT)
+			conteudo.alignment = BoxContainer.ALIGNMENT_CENTER
+			conteudo.add_theme_constant_override("separation", 2)
+			conteudo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			btn.add_child(conteudo)
+
+			var icone := _arma_sprite_rect(arma.tipo, 56.0)
+			if icone != null:
+				icone.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+				conteudo.add_child(icone)
+
+			var rotulo := Label.new()
+			rotulo.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			rotulo.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+			rotulo.text = "%s (dano %d, alc %d)\nForça req. %d / Precisão req. %d%s" % [
 				arma.nome, arma.dano, arma.alcance,
 				arma.forca_necessaria, arma.precisao_necessaria, marca]
+			conteudo.add_child(rotulo)
 			var idx := indice
 			btn.pressed.connect(func():
 				_close_dialog(dialog_layer)
